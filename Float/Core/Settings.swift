@@ -55,4 +55,10 @@ enum Settings {
     static let hotkeyArrange = Hotkey(keyCode: UInt32(kVK_ANSI_A), modifiers: optCmd)
     static let hotkeyNext = Hotkey(keyCode: UInt32(kVK_RightArrow), modifiers: optCmd)
     static let hotkeyPrevious = Hotkey(keyCode: UInt32(kVK_LeftArrow), modifiers: optCmd)
+
+    // ⌥Space launcher; falls back to ⌥⌘Space if another app owns ⌥Space.
+    static let hotkeyLauncher = Hotkey(keyCode: UInt32(kVK_Space), modifiers: UInt32(optionKey))
+    static let hotkeyLauncherFallback = Hotkey(keyCode: UInt32(kVK_Space), modifiers: optCmd)
+    static let launcherWidth: CGFloat = 520
+    static let launcherCornerRadius: CGFloat = 14
 }

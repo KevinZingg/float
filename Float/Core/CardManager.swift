@@ -13,13 +13,18 @@ final class CardManager {
     }
 
     @discardableResult
-    func add(_ content: CardContent, size: NSSize, aspect: CGFloat? = nil) -> CardView {
+    /// With `spawnFrom`, the card appears centered there and springs into a free spot.
+    func add(_ content: CardContent, size: NSSize, aspect: CGFloat? = nil, spawnFrom: CGRect? = nil) -> CardView {
+        let bounds = canvas.layoutBounds
         let step = CGFloat(cards.count % 8) * Settings.cascadeOffset
-        let proposed = CGRect(
-            x: canvas.layoutBounds.minX + Settings.padding + step,
-            y: canvas.layoutBounds.minY + Settings.padding + step,
-            width: size.width, height: size.height)
-        let card = CardView(content: content, frame: Snapping.clamp(proposed, in: canvas.layoutBounds))
+        var start = Snapping.clamp(CGRect(
+            x: bounds.minX + Settings.padding + step, y: bounds.minY + Settings.padding + step,
+            width: size.width, height: size.height), in: bounds)
+        if let spawnFrom {
+            start.origin = CGPoint(x: spawnFrom.midX - size.width / 2, y: spawnFrom.midY - size.height / 2)
+        }
+        let target = spawnFrom.map { _ in Snapping.freeSpot(for: size, avoiding: cards.map(\.frame), in: bounds) }
+        let card = CardView(content: content, frame: start)
         card.aspect = aspect
         card.onFocus = { [weak self] in self?.focus($0) }
         card.onMoveEnded = { [weak self] in self?.settle($0, velocity: $1) }
@@ -34,6 +39,7 @@ final class CardManager {
         canvas.addSubview(card)
         cards.append(card)
         focus(card)
+        if let target { card.mover.animate(to: target) }
         return card
     }
 

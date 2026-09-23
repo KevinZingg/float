@@ -38,6 +38,14 @@ enum Snapping {
         anchors(for: size, in: bounds).min { distance($0.center, point) < distance($1.center, point) }!
     }
 
+    /// First docking anchor not overlapping any occupied frame; otherwise the center.
+    static func freeSpot(for size: CGSize, avoiding occupied: [CGRect], in bounds: CGRect) -> CGRect {
+        let spot = anchors(for: size, in: bounds).first { a in
+            !occupied.contains { $0.insetBy(dx: -Settings.gap / 2, dy: -Settings.gap / 2).intersects(a) }
+        }
+        return spot ?? clamp(CGRect(origin: CGPoint(x: bounds.midX - size.width / 2, y: bounds.midY - size.height / 2), size: size), in: bounds)
+    }
+
     /// While dragging past the edge, the overshoot is damped to sign(d)·|d|^exponent.
     static func rubberBand(_ rect: CGRect, in bounds: CGRect, exponent: CGFloat = Settings.rubberBandExponent) -> CGRect {
         let clamped = clamp(rect, in: bounds)

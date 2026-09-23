@@ -7,6 +7,7 @@ final class FloatApp: NSObject, NSApplicationDelegate {
 
     private var window: CanvasWindow!
     private var manager: CardManager!
+    private let launcher = LauncherView()
 
     static func main() {
         let app = NSApplication.shared
@@ -21,7 +22,11 @@ final class FloatApp: NSObject, NSApplicationDelegate {
         let canvas = CanvasView(frame: window.contentLayoutRect)
         window.contentView = canvas
         manager = CardManager(canvas: canvas)
-        window.onMouseDown = { [weak self] hit in self?.manager.focus(containing: hit) }
+        window.onMouseDown = { [weak self] hit in self?.mouseDown(on: hit) }
+        launcher.onLaunch = { [weak self] in self?.launch($0) }
+        launcher.onDismiss = { [weak self] in
+            if let card = self?.manager.focused { self?.manager.focus(card) }
+        }
 
         NSApp.mainMenu = buildMenu()
         registerHotkeys()
@@ -67,21 +72,46 @@ final class FloatApp: NSObject, NSApplicationDelegate {
         window.makeKeyAndOrderFront(nil)
     }
 
-    @objc func newTerminal() {
+    private func mouseDown(on hit: NSView?) {
+        if launcher.superview != nil, hit?.isDescendant(of: launcher) != true { launcher.dismiss() }
+        manager.focus(containing: hit)
+    }
+
+    @objc func newTerminal() { newTerminal(directory: nil) }
+
+    /// nil directory = where the focused terminal is, else the last directory used.
+    func newTerminal(directory: String?, command: String? = nil, spawnFrom: CGRect? = nil) {
         bringToFront()
-        let directory = (manager.focused?.content as? TerminalCard)?.currentDirectory ?? TerminalCard.lastDirectory
-        manager.add(TerminalCard(directory: directory), size: Settings.terminalSize)
+        let dir = directory ?? (manager.focused?.content as? TerminalCard)?.currentDirectory ?? TerminalCard.lastDirectory
+        manager.add(TerminalCard(directory: dir, command: command), size: Settings.terminalSize, spawnFrom: spawnFrom)
     }
 
     @objc func newPreview() { newPreview(url: Settings.defaultURL) }
 
-    func newPreview(url: String) {
+    func newPreview(url: String, spawnFrom: CGRect? = nil) {
         bringToFront()
         let web = WebCard(url: url)
-        let card = manager.add(web, size: Settings.previewSize)
+        let card = manager.add(web, size: Settings.previewSize, spawnFrom: spawnFrom)
         web.onSuggestAspect = { [weak self, weak card] aspect in
             guard let self, let card else { return }
             self.manager.setAspect(aspect, for: card)
+        }
+    }
+
+    @objc func showLauncher() {
+        bringToFront()
+        guard let canvas = window.contentView else { return }
+        launcher.show(in: canvas, bounds: manager.canvas.layoutBounds)
+    }
+
+    private func launch(_ action: LaunchAction) {
+        let from = launcher.frame
+        switch action {
+        case .terminal(let directory, let command):
+            if let directory, !FileManager.default.fileExists(atPath: directory) { NSSound.beep(); return }
+            newTerminal(directory: directory, command: command, spawnFrom: from)
+        case .preview(let url):
+            newPreview(url: url, spawnFrom: from)
         }
     }
 
@@ -104,6 +134,11 @@ final class FloatApp: NSObject, NSApplicationDelegate {
         for (key, action) in bindings where !Hotkeys.register(key, action: action) {
             NSLog("Float: hotkey \(key) is taken by another app")
         }
+        let showLauncher: () -> Void = { [weak self] in self?.showLauncher() }
+        if !Hotkeys.register(Settings.hotkeyLauncher, action: showLauncher) {
+            NSLog("Float: ⌥Space is taken by another app, using ⌥⌘Space for the launcher")
+            Hotkeys.register(Settings.hotkeyLauncherFallback, action: showLauncher)
+        }
     }
 
     // MARK: - Menu
@@ -118,8 +153,9 @@ final class FloatApp: NSObject, NSApplicationDelegate {
         main.addItem(submenu: appMenu, title: "Float")
 
         let file = NSMenu()
-        file.addItem(item("New Terminal", #selector(newTerminal), "t", [.command, .option]))
+        file.addItem(item("New Terminal", #selector(newTerminal as () -> Void), "t", [.command, .option]))
         file.addItem(item("New Preview", #selector(newPreview as () -> Void), "p", [.command, .option]))
+        file.addItem(item("Quick Launch…", #selector(showLauncher), " ", [.option]))
         file.addItem(.separator())
         file.addItem(item("Close Card", #selector(closeCard), "w"))
         main.addItem(submenu: file, title: "File")

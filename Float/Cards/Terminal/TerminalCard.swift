@@ -40,6 +40,7 @@ final class TerminalCard: CardContent {
             executable: shell, args: ["-l"], environment: Self.environment(),
             execName: "-" + (shell as NSString).lastPathComponent, currentDirectory: directory)
         TerminalCard.lastDirectory = directory
+        RecentDirectories.add(directory)
         if let command { send(command + "\n") }
     }
 
