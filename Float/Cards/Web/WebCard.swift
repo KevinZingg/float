@@ -9,6 +9,8 @@ final class WebCard: NSObject, CardContent {
     private let webView: FloatWebView
     private let toast = ToastView()
     private let downloads = DownloadManager()
+    /// Camera/mic prompts, file pickers and JS dialogs (see WebPermissions.swift).
+    private(set) var permissions: WebPermissions!
     private let urlField = URLField()
     private let viewportMenu = NSPopUpButton(frame: .zero, pullsDown: false)
     private let controls = NSStackView()
@@ -32,6 +34,7 @@ final class WebCard: NSObject, CardContent {
     convenience init(url input: String = Settings.defaultURL) {
         let config = WKWebViewConfiguration()
         config.websiteDataStore = .default()
+        config.preferences.isElementFullscreenEnabled = true
         self.init(configuration: config)
         load(input)
     }
@@ -50,6 +53,7 @@ final class WebCard: NSObject, CardContent {
         host.addSubview(webView)
         buildErrorLabel()
         toast.install(in: host)
+        permissions = WebPermissions(host: host)
         downloads.onEvent = { [weak self] in self?.downloadEvent($0) }
         host.onResize = { [weak self] in self?.updateZoom() }
 
@@ -225,6 +229,7 @@ final class WebCard: NSObject, CardContent {
     }
 
     func close() {
+        permissions.cancelAll()
         retryTimer?.invalidate()
         observations.removeAll()
         webView.stopLoading()

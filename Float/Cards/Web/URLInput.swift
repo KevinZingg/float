@@ -14,7 +14,11 @@ enum URLInput {
     private static let localHosts = ["localhost", "127.0.0.1", "0.0.0.0"]
 
     static func isLocal(_ url: URL) -> Bool {
-        localHosts.contains(url.host ?? "")
+        isLocal(host: url.host ?? "")
+    }
+
+    static func isLocal(host: String) -> Bool {
+        localHosts.contains(host)
     }
 
     /// Whether the launcher should treat the input as a preview rather than a shell command.

@@ -59,6 +59,8 @@ enum Settings {
     static let popupHeightRange: ClosedRange<CGFloat> = 250...800
     static let toastHeight: CGFloat = 28
     static let toastDuration: TimeInterval = 4
+    static let promptCornerRadius: CGFloat = 14
+    static let promptMaxWidth: CGFloat = 460
     static let cardEntranceScale: CGFloat = 0.92
     static let cardExitDuration: TimeInterval = 0.2
 

@@ -117,6 +117,9 @@ final class FloatApp: NSObject, NSApplicationDelegate {
         }
     }
 
+    /// Forgets every remembered camera/mic decision, so sites ask again.
+    @objc func resetSitePermissions() { SitePermissions.resetAll() }
+
     @objc func arrangeAll() { bringToFront(); manager.arrangeAll() }
     @objc func focusNext() { bringToFront(); manager.cycleFocus(by: 1) }
     @objc func focusPrevious() { bringToFront(); manager.cycleFocus(by: -1) }
@@ -149,6 +152,8 @@ final class FloatApp: NSObject, NSApplicationDelegate {
         let main = NSMenu()
 
         let appMenu = NSMenu()
+        appMenu.addItem(item("Reset Site Permissions", #selector(resetSitePermissions), ""))
+        appMenu.addItem(.separator())
         appMenu.addItem(withTitle: "Hide Float", action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
         appMenu.addItem(.separator())
         appMenu.addItem(withTitle: "Quit Float", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")

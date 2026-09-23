@@ -41,7 +41,8 @@ final class CanvasWindow: NSWindow {
 
     /// Stage Manager shifts the window right to make room for its strip; put it back so cards get the full width.
     @objc func pin() {
-        guard frame != pinnedFrame else { return }
+        // A web card's element fullscreen changes the screen's visible area; leave the canvas alone meanwhile.
+        guard frame != pinnedFrame, !NSApp.currentSystemPresentationOptions.contains(.fullScreen) else { return }
         NSLog("Float: re-pinning window from %@", "\(frame)")
         setFrame(pinnedFrame, display: true)
     }
