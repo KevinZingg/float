@@ -3,12 +3,12 @@ import Foundation
 /// Pure geometry: keep cards inside the padded canvas and find docking spots.
 enum Snapping {
     /// The usable area: the canvas inset by the padding.
-    static func area(_ bounds: CGRect, padding: CGFloat = Settings.padding) -> CGRect {
+    static func area(_ bounds: CGRect, padding: CGFloat = Config.padding) -> CGRect {
         bounds.insetBy(dx: padding, dy: padding)
     }
 
     /// Moves (and if needed shrinks) a rect so it sits fully inside the padded area.
-    static func clamp(_ rect: CGRect, in bounds: CGRect, padding: CGFloat = Settings.padding) -> CGRect {
+    static func clamp(_ rect: CGRect, in bounds: CGRect, padding: CGFloat = Config.padding) -> CGRect {
         let a = area(bounds, padding: padding)
         var r = rect
         r.size.width = min(r.width, a.width)
@@ -19,7 +19,7 @@ enum Snapping {
     }
 
     /// The 8 docking frames for a card of `size`: 4 corners + 4 edge midpoints of the padded area.
-    static func anchors(for size: CGSize, in bounds: CGRect, padding: CGFloat = Settings.padding) -> [CGRect] {
+    static func anchors(for size: CGSize, in bounds: CGRect, padding: CGFloat = Config.padding) -> [CGRect] {
         let a = area(bounds, padding: padding)
         let w = min(size.width, a.width), h = min(size.height, a.height)
         let xs = [a.minX, a.midX - w / 2, a.maxX - w]
@@ -41,7 +41,7 @@ enum Snapping {
     /// First docking anchor not overlapping any occupied frame; otherwise the center.
     static func freeSpot(for size: CGSize, avoiding occupied: [CGRect], in bounds: CGRect) -> CGRect {
         let spot = anchors(for: size, in: bounds).first { a in
-            !occupied.contains { $0.insetBy(dx: -Settings.gap / 2, dy: -Settings.gap / 2).intersects(a) }
+            !occupied.contains { $0.insetBy(dx: -Config.gap / 2, dy: -Config.gap / 2).intersects(a) }
         }
         return spot ?? clamp(CGRect(origin: CGPoint(x: bounds.midX - size.width / 2, y: bounds.midY - size.height / 2), size: size), in: bounds)
     }
@@ -49,7 +49,7 @@ enum Snapping {
     /// Spot for a card opened from `source`: to its right if it fits, else left, else below, preferring
     /// spots no other card covers; if all are taken, cascade from the first one. Clamped to the canvas.
     static func besideSpot(for size: CGSize, next source: CGRect, avoiding occupied: [CGRect], in bounds: CGRect) -> CGRect {
-        let a = area(bounds), g = Settings.gap
+        let a = area(bounds), g = Config.gap
         let candidates = [
             CGRect(x: source.maxX + g, y: source.minY, width: size.width, height: size.height),
             CGRect(x: source.minX - g - size.width, y: source.minY, width: size.width, height: size.height),
@@ -59,7 +59,7 @@ enum Snapping {
         if let spot = candidates.first(where: free) { return spot }
         var spot = clamp(candidates.first ?? CGRect(origin: CGPoint(x: source.maxX + g, y: source.minY), size: size), in: bounds)
         for _ in 0..<8 where !free(spot) {
-            spot = clamp(spot.offsetBy(dx: Settings.cascadeOffset, dy: Settings.cascadeOffset), in: bounds)
+            spot = clamp(spot.offsetBy(dx: Config.cascadeOffset, dy: Config.cascadeOffset), in: bounds)
         }
         return spot
     }
@@ -72,7 +72,7 @@ enum Snapping {
     }
 
     /// While dragging past the edge, the overshoot is damped to sign(d)·|d|^exponent.
-    static func rubberBand(_ rect: CGRect, in bounds: CGRect, exponent: CGFloat = Settings.rubberBandExponent) -> CGRect {
+    static func rubberBand(_ rect: CGRect, in bounds: CGRect, exponent: CGFloat = Config.rubberBandExponent) -> CGRect {
         let clamped = clamp(rect, in: bounds)
         func band(_ d: CGFloat) -> CGFloat { d == 0 ? 0 : (d < 0 ? -1 : 1) * pow(abs(d), exponent) }
         return clamped.offsetBy(dx: band(rect.minX - clamped.minX), dy: band(rect.minY - clamped.minY))
@@ -94,16 +94,16 @@ extension Snapping {
     /// `previewAspects` holds each preview's locked content aspect (nil = default preview shape).
     static func arrange(
         terminals: Int, previewAspects: [CGFloat?], in bounds: CGRect,
-        gap: CGFloat = Settings.gap, chrome: CGFloat = Settings.chromeHeight
+        gap: CGFloat = Config.gap, chrome: CGFloat = Theme.chromeHeight
     ) -> (terminals: [CGRect], previews: [CGRect]) {
         let a = area(bounds)
         let previewColumn: CGFloat
         if previewAspects.isEmpty {
             previewColumn = 0
         } else if terminals == 0 {
-            previewColumn = min(a.width, Settings.previewSize.width * 1.5)
+            previewColumn = min(a.width, Config.previewSize.width * 1.5)
         } else {
-            previewColumn = min(max(Settings.previewSize.width, a.width * 0.3), a.width * 0.45)
+            previewColumn = min(max(Config.previewSize.width, a.width * 0.3), a.width * 0.45)
         }
 
         // Previews: right-aligned column, each at most an equal share of the height.
@@ -111,7 +111,7 @@ extension Snapping {
         if !previewAspects.isEmpty {
             let n = CGFloat(previewAspects.count)
             let maxH = (a.height - gap * (n - 1)) / n
-            let defaultAspect = Settings.previewSize.width / (Settings.previewSize.height - chrome)
+            let defaultAspect = Config.previewSize.width / (Config.previewSize.height - chrome)
             var y = a.minY
             for aspect in previewAspects {
                 let ratio = aspect ?? defaultAspect
@@ -127,13 +127,13 @@ extension Snapping {
         var result: [CGRect] = []
         if terminals > 0 {
             let rect = CGRect(x: a.minX, y: a.minY, width: a.width - (previewColumn > 0 ? previewColumn + gap : 0), height: a.height)
-            let target = Settings.terminalSize.width / Settings.terminalSize.height
+            let target = Config.terminalSize.width / Config.terminalSize.height
             let cols = (1...terminals).min { c1, c2 in
                 abs(log(cellAspect(terminals, c1, rect, gap) / target)) < abs(log(cellAspect(terminals, c2, rect, gap) / target))
             }!
             let rows = (terminals + cols - 1) / cols
-            let cellW = min((rect.width - gap * CGFloat(cols - 1)) / CGFloat(cols), Settings.terminalSize.width * 1.4)
-            let cellH = min((rect.height - gap * CGFloat(rows - 1)) / CGFloat(rows), Settings.terminalSize.height * 1.4)
+            let cellW = min((rect.width - gap * CGFloat(cols - 1)) / CGFloat(cols), Config.terminalSize.width * 1.4)
+            let cellH = min((rect.height - gap * CGFloat(rows - 1)) / CGFloat(rows), Config.terminalSize.height * 1.4)
             for i in 0..<terminals {
                 let col = CGFloat(i % cols), row = CGFloat(i / cols)
                 result.append(CGRect(x: rect.minX + col * (cellW + gap), y: rect.minY + row * (cellH + gap), width: cellW, height: cellH))

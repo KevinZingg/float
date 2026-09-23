@@ -11,8 +11,8 @@ final class GrabberView: NSView {
             guard emphasis != oldValue else { return }
             let alpha: CGFloat = switch emphasis {
             case .hidden: 0
-            case .idle: Settings.grabberIdleAlpha
-            case .active: Settings.grabberActiveAlpha
+            case .idle: Theme.current.grabberIdleAlpha
+            case .active: Theme.current.grabberActiveAlpha
             }
             NSAnimationContext.runAnimationGroup { ctx in
                 ctx.duration = 0.15
@@ -24,8 +24,12 @@ final class GrabberView: NSView {
     override init(frame: NSRect) {
         super.init(frame: frame)
         wantsLayer = true
-        layer?.backgroundColor = NSColor.white.cgColor
         alphaValue = 0
+        applyTheme()
+    }
+
+    func applyTheme() {
+        layer?.backgroundColor = Theme.current.accent.cgColor
     }
 
     required init?(coder: NSCoder) { fatalError() }

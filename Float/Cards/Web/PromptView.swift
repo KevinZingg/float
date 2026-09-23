@@ -3,7 +3,7 @@ import AppKit
 /// Safari-style inline prompt at the top of a card: a message, optional text field and a few buttons.
 /// Used for site permissions and JS alert/confirm/prompt. Requests queue up and show one at a time.
 @MainActor
-final class PromptView: NSVisualEffectView {
+final class PromptView: PillView {
     struct Request {
         let message: String
         let buttons: [String]
@@ -23,28 +23,22 @@ final class PromptView: NSVisualEffectView {
 
     init() {
         super.init(frame: .zero)
-        material = .hudWindow
-        blendingMode = .withinWindow
-        state = .active
-        wantsLayer = true
-        layer?.cornerRadius = Settings.promptCornerRadius
-        layer?.cornerCurve = .continuous
-        layer?.masksToBounds = true
         isHidden = true
 
-        label.font = .systemFont(ofSize: 12, weight: .medium)
-        label.maximumNumberOfLines = 4
-        field.font = .systemFont(ofSize: 12)
-        field.controlSize = .small
+        label.maximumNumberOfLines = 6
+        field.font = Theme.mono(12)
+        field.isBordered = false
+        field.focusRingType = .none
+        field.drawsBackground = true
         field.target = self
         field.action = #selector(returnPressed)
-        buttonStack.spacing = 6
+        buttonStack.spacing = 16
 
         let stack = NSStackView(views: [label, field, buttonStack])
         stack.orientation = .vertical
         stack.alignment = .leading
-        stack.spacing = 8
-        stack.edgeInsets = NSEdgeInsets(top: 10, left: 14, bottom: 10, right: 14)
+        stack.spacing = 12
+        stack.edgeInsets = NSEdgeInsets(top: 12, left: 16, bottom: 10, right: 16)
         stack.translatesAutoresizingMaskIntoConstraints = false
         addSubview(stack)
         NSLayoutConstraint.activate([
@@ -52,8 +46,8 @@ final class PromptView: NSVisualEffectView {
             stack.trailingAnchor.constraint(equalTo: trailingAnchor),
             stack.topAnchor.constraint(equalTo: topAnchor),
             stack.bottomAnchor.constraint(equalTo: bottomAnchor),
-            field.widthAnchor.constraint(equalTo: stack.widthAnchor, constant: -28),
-            label.widthAnchor.constraint(lessThanOrEqualTo: stack.widthAnchor, constant: -28),
+            field.widthAnchor.constraint(equalTo: stack.widthAnchor, constant: -32),
+            label.widthAnchor.constraint(lessThanOrEqualTo: stack.widthAnchor, constant: -32),
         ])
     }
 
@@ -67,7 +61,7 @@ final class PromptView: NSVisualEffectView {
             centerXAnchor.constraint(equalTo: host.centerXAnchor),
             topAnchor.constraint(equalTo: host.topAnchor, constant: 12),
             widthAnchor.constraint(lessThanOrEqualTo: host.widthAnchor, constant: -24),
-            widthAnchor.constraint(lessThanOrEqualToConstant: Settings.promptMaxWidth),
+            widthAnchor.constraint(lessThanOrEqualToConstant: Config.promptMaxWidth),
         ])
     }
 
@@ -85,14 +79,18 @@ final class PromptView: NSVisualEffectView {
     }
 
     private func present(_ r: Request) {
-        label.stringValue = r.message
+        let t = Theme.current
+        applyTheme()
+        label.attributedStringValue = NSAttributedString(string: r.message, attributes: [
+            .font: Theme.mono(11.5), .foregroundColor: t.text,
+        ])
         field.isHidden = r.textDefault == nil
         field.stringValue = r.textDefault ?? ""
+        field.textColor = t.text
+        field.backgroundColor = t.fieldBackground
         buttonStack.arrangedSubviews.forEach { $0.removeFromSuperview() }
         for (i, title) in r.buttons.enumerated() {
-            let b = NSButton(title: title, target: self, action: #selector(buttonClicked(_:)))
-            b.controlSize = .small
-            b.bezelStyle = .push
+            let b = PillView.button(title, isDefault: i == r.defaultIndex, target: self, action: #selector(buttonClicked(_:)))
             b.tag = i
             if i == r.defaultIndex { b.keyEquivalent = "\r" }
             buttonStack.addArrangedSubview(b)

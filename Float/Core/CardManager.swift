@@ -9,19 +9,35 @@ final class CardManager {
     private(set) var focused: CardView?
 
     private var trackpad: TrackpadMover?
+    /// Shown behind everything while there are no cards.
+    private let emptyState = EmptyStateView()
 
     init(canvas: CanvasView) {
         self.canvas = canvas
         trackpad = TrackpadMover(canvas: canvas) { [weak self] in self?.focus($0) }
+        emptyState.frame = canvas.bounds
+        emptyState.autoresizingMask = [.width, .height]
+        canvas.addSubview(emptyState, positioned: .below, relativeTo: nil)
+    }
+
+    private func updateEmptyState() {
+        emptyState.setVisible(cards.isEmpty, animated: true)
+    }
+
+    /// Re-reads Theme and user settings after they change.
+    func applyTheme() {
+        for card in cards { card.applyTheme() }
+        emptyState.needsDisplay = true
+        clampAll()
     }
 
     @discardableResult
     /// With `spawnFrom`, the card appears centered there and springs into a free spot.
     func add(_ content: CardContent, size: NSSize, aspect: CGFloat? = nil, spawnFrom: CGRect? = nil) -> CardView {
         let bounds = canvas.bounds
-        let step = CGFloat(cards.count % 8) * Settings.cascadeOffset
+        let step = CGFloat(cards.count % 8) * Config.cascadeOffset
         var start = Snapping.clamp(CGRect(
-            x: bounds.minX + Settings.padding + step, y: bounds.minY + Settings.padding + step,
+            x: bounds.minX + Config.padding + step, y: bounds.minY + Config.padding + step,
             width: size.width, height: size.height), in: bounds)
         if let spawnFrom {
             start.origin = CGPoint(x: spawnFrom.midX - size.width / 2, y: spawnFrom.midY - size.height / 2)
@@ -57,6 +73,7 @@ final class CardManager {
         }
         canvas.addSubview(card)
         cards.append(card)
+        updateEmptyState()
         focus(card)
         if let target { card.mover.animate(to: target) }
         return card
@@ -105,6 +122,7 @@ final class CardManager {
     private func remove(_ card: CardView) {
         guard cards.contains(where: { $0 === card }) else { return }
         cards.removeAll { $0 === card }
+        updateEmptyState()
         card.content.close()
         card.mover.stop()
         card.animateExit { card.removeFromSuperview() }
@@ -136,7 +154,7 @@ final class CardManager {
     /// Applies an S/M/L width, keeping the locked aspect or the current proportions.
     func applySize(_ preset: SizePreset, to card: CardView) {
         var f = card.frame
-        let chrome = Settings.chromeHeight
+        let chrome = Theme.chromeHeight
         let ratio = card.aspect ?? f.width / max(f.height - chrome, 1)
         f.size = CGSize(width: preset.width, height: preset.width / ratio + chrome)
         setFrame(Snapping.clamp(f, in: canvas.bounds), for: card)
@@ -147,7 +165,7 @@ final class CardManager {
         card.aspect = aspect
         guard let aspect else { return }
         var f = card.frame
-        f.size.height = f.width / aspect + Settings.chromeHeight
+        f.size.height = f.width / aspect + Theme.chromeHeight
         setFrame(Snapping.clamp(f, in: canvas.bounds), for: card)
     }
 

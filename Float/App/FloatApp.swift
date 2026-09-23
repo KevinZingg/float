@@ -17,6 +17,8 @@ final class FloatApp: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        Theme.registerFonts()
+        Config.registerDefaults()
         let screen = NSScreen.main ?? NSScreen.screens[0]
         window = CanvasWindow(screen: screen)
         let canvas = CanvasView(frame: window.contentLayoutRect)
@@ -35,22 +37,57 @@ final class FloatApp: NSObject, NSApplicationDelegate {
                 self, selector: #selector(windowGeometryChanged), name: name, object: window)
         }
 
+        settingsSnapshot = Self.currentSettings
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(defaultsChanged), name: UserDefaults.didChangeNotification, object: nil)
+
         window.makeKeyAndOrderFront(nil)
         NSApp.activate()
         if CommandLine.arguments.contains("--demo") { runDemo() } else { newTerminal() }
     }
 
+    // MARK: - Live settings
+
+    private var settingsSnapshot = ""
+    private static var currentSettings: String {
+        let d = UserDefaults.standard
+        return [Config.Keys.terminalFontSize, Config.Keys.springDampingRatio, Config.Keys.padding]
+            .map { "\(d.object(forKey: $0) ?? "")" }.joined(separator: "|")
+    }
+
+    /// UserDefaults also changes for unrelated keys (last directory…), so only re-apply when a setting moved.
+    @objc private func defaultsChanged() {
+        let now = Self.currentSettings
+        guard now != settingsSnapshot else { return }
+        settingsSnapshot = now
+        manager.applyTheme()
+        launcher.applyTheme()
+    }
+
+    private var launcherHotkeyTitle = "⌥ Space"
+
+    @objc func showSettings() { SettingsWindow.show(launcherHotkey: launcherHotkeyTitle) }
+
     /// Dev flag: a typical layout to eyeball rendering and spacing.
     private func runDemo() {
-        for _ in 0..<3 { newTerminal() }
+        let repo = NSHomeDirectory() + "/Documents/float"
+        newTerminal(directory: repo, command: "ls -G")
+        newTerminal(directory: repo, command: "git --no-pager log --oneline --graph --decorate --color -14")
+        newTerminal(directory: repo, command: "vim README.md")
+        newPreview(url: "https://mogen.ch")
         newPreview(url: "https://example.com")
-        newPreview()
         // Give Stage Manager a moment to place the window so the layout uses the final bounds.
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak self] in self?.arrangeAll() }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak self] in
+            guard let self else { return }
+            self.arrangeAll()
+            if let first = self.manager.cards.first { self.manager.focus(first) }
+        }
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         window.makeKeyAndOrderFront(nil)
+        // The canvas covers the screen, so keep an open Settings window above it.
+        SettingsWindow.orderFrontIfOpen()
         return true
     }
 
@@ -76,15 +113,15 @@ final class FloatApp: NSObject, NSApplicationDelegate {
     func newTerminal(directory: String?, command: String? = nil, spawnFrom: CGRect? = nil) {
         bringToFront()
         let dir = directory ?? (manager.focused?.content as? TerminalCard)?.currentDirectory ?? TerminalCard.lastDirectory
-        manager.add(TerminalCard(directory: dir, command: command), size: Settings.terminalSize, spawnFrom: spawnFrom)
+        manager.add(TerminalCard(directory: dir, command: command), size: Config.terminalSize, spawnFrom: spawnFrom)
     }
 
-    @objc func newPreview() { newPreview(url: Settings.defaultURL) }
+    @objc func newPreview() { newPreview(url: Config.defaultURL) }
 
     func newPreview(url: String, spawnFrom: CGRect? = nil) {
         bringToFront()
         let web = WebCard(url: url)
-        wire(web, to: manager.add(web, size: Settings.previewSize, spawnFrom: spawnFrom))
+        wire(web, to: manager.add(web, size: Config.previewSize, spawnFrom: spawnFrom))
     }
 
     /// Hooks a web card up to the manager, including the cards it opens (popups of popups too).
@@ -130,19 +167,20 @@ final class FloatApp: NSObject, NSApplicationDelegate {
 
     private func registerHotkeys() {
         let bindings: [(Hotkey, () -> Void)] = [
-            (Settings.hotkeyNewTerminal, { [weak self] in self?.newTerminal() }),
-            (Settings.hotkeyNewPreview, { [weak self] in self?.newPreview() }),
-            (Settings.hotkeyArrange, { [weak self] in self?.arrangeAll() }),
-            (Settings.hotkeyNext, { [weak self] in self?.focusNext() }),
-            (Settings.hotkeyPrevious, { [weak self] in self?.focusPrevious() }),
+            (Config.hotkeyNewTerminal, { [weak self] in self?.newTerminal() }),
+            (Config.hotkeyNewPreview, { [weak self] in self?.newPreview() }),
+            (Config.hotkeyArrange, { [weak self] in self?.arrangeAll() }),
+            (Config.hotkeyNext, { [weak self] in self?.focusNext() }),
+            (Config.hotkeyPrevious, { [weak self] in self?.focusPrevious() }),
         ]
         for (key, action) in bindings where !Hotkeys.register(key, action: action) {
             NSLog("Float: hotkey \(key) is taken by another app")
         }
         let showLauncher: () -> Void = { [weak self] in self?.showLauncher() }
-        if !Hotkeys.register(Settings.hotkeyLauncher, action: showLauncher) {
+        if !Hotkeys.register(Config.hotkeyLauncher, action: showLauncher) {
             NSLog("Float: ⌥Space is taken by another app, using ⌥⌘Space for the launcher")
-            Hotkeys.register(Settings.hotkeyLauncherFallback, action: showLauncher)
+            Hotkeys.register(Config.hotkeyLauncherFallback, action: showLauncher)
+            launcherHotkeyTitle = "⌥⌘ Space"
         }
     }
 
@@ -152,6 +190,7 @@ final class FloatApp: NSObject, NSApplicationDelegate {
         let main = NSMenu()
 
         let appMenu = NSMenu()
+        appMenu.addItem(item("Settings…", #selector(showSettings), ","))
         appMenu.addItem(item("Reset Site Permissions", #selector(resetSitePermissions), ""))
         appMenu.addItem(.separator())
         appMenu.addItem(withTitle: "Hide Float", action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")

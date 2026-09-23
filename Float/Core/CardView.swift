@@ -21,6 +21,8 @@ final class CardView: NSView {
     private let titleLabel = NSTextField(labelWithString: "")
     private let closeButton = NSButton()
     private let presetButton = NSButton()
+    /// Hairline under the chrome strip.
+    private let chromeRule = NSView()
     private let grabber = GrabberView()
     private var isHovered = false
     private var isMoving = false
@@ -49,39 +51,28 @@ final class CardView: NSView {
         wantsLayer = true
         layer?.masksToBounds = false
         layer?.shadowColor = NSColor.black.cgColor
-        layer?.shadowOpacity = Settings.shadowOpacity
-        layer?.shadowRadius = Settings.shadowRadius
-        layer?.shadowOffset = Settings.shadowOffset
 
         container.wantsLayer = true
-        container.layer?.cornerRadius = Settings.cornerRadius
         container.layer?.cornerCurve = .continuous
         container.layer?.masksToBounds = true
-        container.layer?.backgroundColor = Settings.cardBackground.cgColor
-        container.layer?.borderColor = NSColor(white: 1, alpha: 0.08).cgColor
-        container.layer?.borderWidth = 1
         addSubview(container)
 
         chrome.wantsLayer = true
-        chrome.layer?.backgroundColor = Settings.chromeBackground.cgColor
+        chromeRule.wantsLayer = true
+        chrome.addSubview(chromeRule)
         container.addSubview(chrome)
 
-        titleLabel.font = .systemFont(ofSize: 11, weight: .medium)
-        titleLabel.textColor = .secondaryLabelColor
         titleLabel.lineBreakMode = .byTruncatingMiddle
-        titleLabel.stringValue = content.title
         chrome.addSubview(titleLabel)
 
         closeButton.image = NSImage(systemSymbolName: "xmark", accessibilityDescription: "Close")
         closeButton.isBordered = false
-        closeButton.contentTintColor = .secondaryLabelColor
         closeButton.target = self
         closeButton.action = #selector(closeClicked)
         chrome.addSubview(closeButton)
 
         presetButton.image = NSImage(systemSymbolName: "aspectratio", accessibilityDescription: "Size")
         presetButton.isBordered = false
-        presetButton.contentTintColor = .secondaryLabelColor
         presetButton.target = self
         presetButton.action = #selector(showPresets)
         chrome.addSubview(presetButton)
@@ -90,10 +81,40 @@ final class CardView: NSView {
         chrome.addSubview(grabber)
         container.addSubview(content.view)
 
-        content.onTitleChange = { [weak self] title in self?.titleLabel.stringValue = title }
+        content.onTitleChange = { [weak self] title in self?.setTitle(title) }
+        applyTheme()
         addTrackingArea(NSTrackingArea(
             rect: .zero, options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect], owner: self))
         setHovered(false, animated: false)
+    }
+
+    // MARK: - Theme
+
+    /// Re-reads every visual token from Theme.current; also themes the card's content.
+    func applyTheme() {
+        let t = Theme.current
+        layer?.shadowOpacity = t.shadowOpacity
+        layer?.shadowRadius = t.shadowRadius
+        layer?.shadowOffset = t.shadowOffset
+        container.layer?.cornerRadius = t.cardRadius
+        container.layer?.backgroundColor = t.cardBackground.cgColor
+        container.layer?.borderWidth = t.borderWidth
+        chrome.layer?.backgroundColor = t.chromeBackground.cgColor
+        chromeRule.layer?.backgroundColor = t.chromeRule.cgColor
+        for b in [closeButton, presetButton] {
+            b.contentTintColor = t.controlTint
+            b.image?.isTemplate = true
+            b.symbolConfiguration = .init(pointSize: 10, weight: .regular)
+        }
+        grabber.applyTheme()
+        setTitle(content.title)
+        updateBorder()
+        content.applyTheme()
+        needsLayout = true
+    }
+
+    private func setTitle(_ title: String) {
+        titleLabel.attributedStringValue = Theme.label(title, color: Theme.current.chromeText)
     }
 
     // MARK: - Hover
@@ -104,7 +125,7 @@ final class CardView: NSView {
     /// Chrome buttons stay quiet until the pointer is over the card.
     private func setHovered(_ hovered: Bool, animated: Bool = true) {
         isHovered = hovered
-        let alpha: CGFloat = hovered ? 1 : Settings.idleChromeAlpha
+        let alpha: CGFloat = hovered ? 1 : Theme.current.idleControlAlpha
         NSAnimationContext.runAnimationGroup { ctx in
             ctx.duration = animated ? 0.15 : 0
             for button in [closeButton, presetButton] { button.animator().alphaValue = alpha }
@@ -119,7 +140,7 @@ final class CardView: NSView {
 
     /// The top strip, where a plain two-finger swipe or a drag moves the card.
     func isInStrip(_ local: CGPoint) -> Bool {
-        local.y >= 0 && local.y < Settings.chromeHeight && local.x >= 0 && local.x <= bounds.width
+        local.y >= 0 && local.y < Theme.chromeHeight && local.x >= 0 && local.x <= bounds.width
     }
 
     required init?(coder: NSCoder) { fatalError() }
@@ -130,16 +151,18 @@ final class CardView: NSView {
         super.layout()
         container.frame = bounds
         layer?.shadowPath = CGPath(
-            roundedRect: bounds, cornerWidth: Settings.cornerRadius, cornerHeight: Settings.cornerRadius, transform: nil)
+            roundedRect: bounds, cornerWidth: Theme.current.cardRadius, cornerHeight: Theme.current.cardRadius, transform: nil)
 
-        let h = Settings.chromeHeight
+        let h = Theme.chromeHeight
         chrome.frame = CGRect(x: 0, y: 0, width: bounds.width, height: h)
         let button: CGFloat = 22
         closeButton.frame = CGRect(x: bounds.width - button - 6, y: (h - button) / 2, width: button, height: button)
         presetButton.frame = closeButton.frame.offsetBy(dx: -button, dy: 0)
         let trailing = presetButton.frame.minX - 4
-        let pill = Settings.grabberSize
-        grabber.frame = CGRect(x: (bounds.width - pill.width) / 2, y: Settings.grabberTopInset, width: pill.width, height: pill.height)
+        let t = Theme.current
+        let pill = t.grabberSize
+        grabber.frame = CGRect(x: (bounds.width - pill.width) / 2, y: t.grabberTopInset, width: pill.width, height: pill.height)
+        chromeRule.frame = CGRect(x: 0, y: h - t.borderWidth, width: bounds.width, height: t.borderWidth)
 
         if let accessory = content.accessory {
             titleLabel.isHidden = true
@@ -149,15 +172,14 @@ final class CardView: NSView {
         } else {
             titleLabel.sizeToFit()
             let labelH = titleLabel.frame.height
-            titleLabel.frame = CGRect(x: 12, y: (h - labelH) / 2, width: max(0, trailing - 12), height: labelH)
+            titleLabel.frame = CGRect(x: 12, y: (h - labelH) / 2 + 1, width: max(0, trailing - 12), height: labelH)
         }
         content.view.frame = CGRect(x: 0, y: h, width: bounds.width, height: max(0, bounds.height - h))
     }
 
     private func updateBorder() {
-        container.layer?.borderColor = isFocused
-            ? NSColor.controlAccentColor.withAlphaComponent(0.8).cgColor
-            : NSColor(white: 1, alpha: 0.08).cgColor
+        let t = Theme.current
+        container.layer?.borderColor = (isFocused ? t.focusHairline : t.hairline).cgColor
     }
 
     @objc private func closeClicked() { onCloseRequested?(self) }
@@ -166,6 +188,7 @@ final class CardView: NSView {
 
     @objc private func showPresets() {
         let menu = NSMenu()
+        menu.font = Theme.mono(12)
         menu.addItem(withTitle: "Aspect", action: nil, keyEquivalent: "").isEnabled = false
         for preset in AspectPreset.allCases {
             let item = menu.addItem(withTitle: preset.rawValue, action: #selector(aspectPicked(_:)), keyEquivalent: "")
@@ -196,7 +219,7 @@ final class CardView: NSView {
     // MARK: - Hit testing
 
     private func edges(at p: CGPoint) -> Edges {
-        let z = Settings.resizeZone
+        let z = Config.resizeZone
         var e: Edges = []
         if p.x < z { e.insert(.left) }
         if p.x > bounds.width - z { e.insert(.right) }
@@ -286,11 +309,12 @@ final class CardView: NSView {
     /// Scales the card up slightly and deepens its shadow while it is being dragged.
     private func setLifted(_ lifted: Bool) {
         guard let layer else { return }
+        let t = Theme.current
         let values: [(String, Any)] = [
-            ("transform", NSValue(caTransform3D: centerScale(lifted ? Settings.liftScale : 1))),
-            ("shadowRadius", lifted ? Settings.liftShadowRadius : Settings.shadowRadius),
-            ("shadowOpacity", lifted ? Settings.liftShadowOpacity : Settings.shadowOpacity),
-            ("shadowOffset", NSValue(size: lifted ? Settings.liftShadowOffset : Settings.shadowOffset)),
+            ("transform", NSValue(caTransform3D: centerScale(lifted ? Config.liftScale : 1))),
+            ("shadowRadius", lifted ? t.liftShadowRadius : t.shadowRadius),
+            ("shadowOpacity", lifted ? t.liftShadowOpacity : t.shadowOpacity),
+            ("shadowOffset", NSValue(size: lifted ? t.liftShadowOffset : t.shadowOffset)),
         ]
         for (key, value) in values {
             let anim = CASpringAnimation(perceptualDuration: 0.3, bounce: lifted ? 0 : 0.25)
@@ -317,7 +341,7 @@ final class CardView: NSView {
         let spring = Spring.standard
         var animations: [(String, Any, Any)] = [("opacity", 0, 1)]
         if !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
-            animations.append(("transform", NSValue(caTransform3D: centerScale(Settings.cardEntranceScale)),
+            animations.append(("transform", NSValue(caTransform3D: centerScale(Config.cardEntranceScale)),
                                NSValue(caTransform3D: CATransform3DIdentity)))
         }
         for (key, from, to) in animations {
@@ -338,10 +362,10 @@ final class CardView: NSView {
         guard let layer else { completion(); return }
         CATransaction.begin()
         CATransaction.setCompletionBlock { MainActor.assumeIsolated { completion() } }
-        for (key, to) in [("opacity", 0 as Any), ("transform", NSValue(caTransform3D: centerScale(Settings.cardEntranceScale)))] {
+        for (key, to) in [("opacity", 0 as Any), ("transform", NSValue(caTransform3D: centerScale(Config.cardEntranceScale)))] {
             let anim = CABasicAnimation(keyPath: key)
             anim.toValue = to
-            anim.duration = Settings.cardExitDuration
+            anim.duration = Config.cardExitDuration
             anim.timingFunction = CAMediaTimingFunction(name: .easeIn)
             anim.fillMode = .forwards
             anim.isRemovedOnCompletion = false
@@ -351,7 +375,7 @@ final class CardView: NSView {
     }
 
     private func resized(edges e: Edges, dx: CGFloat, dy: CGFloat) -> CGRect {
-        let min = Settings.minCardSize
+        let min = Config.minCardSize
         var w = startFrame.width, h = startFrame.height
         if e.contains(.left) { w -= dx }
         if e.contains(.right) { w += dx }
@@ -361,7 +385,7 @@ final class CardView: NSView {
         h = max(h, min.height)
 
         if let aspect {
-            let chromeH = Settings.chromeHeight
+            let chromeH = Theme.chromeHeight
             if e.isDisjoint(with: [.left, .right]) {
                 w = max((h - chromeH) * aspect, min.width)
             }
@@ -374,11 +398,11 @@ final class CardView: NSView {
     }
 
     override func resetCursorRects() {
-        let z = Settings.resizeZone
+        let z = Config.resizeZone
         let b = bounds
         // Open hand over the strip's empty area (left of the buttons; the web card's controls cover it).
         if content.accessory == nil {
-            addCursorRect(CGRect(x: z, y: z, width: presetButton.frame.minX - z, height: Settings.chromeHeight - z), cursor: .openHand)
+            addCursorRect(CGRect(x: z, y: z, width: presetButton.frame.minX - z, height: Theme.chromeHeight - z), cursor: .openHand)
         }
         addCursorRect(CGRect(x: 0, y: z, width: z, height: b.height - 2 * z), cursor: .resizeLeftRight)
         addCursorRect(CGRect(x: b.width - z, y: z, width: z, height: b.height - 2 * z), cursor: .resizeLeftRight)
