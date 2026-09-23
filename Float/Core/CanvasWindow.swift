@@ -30,6 +30,21 @@ final class CanvasWindow: NSWindow {
         isReleasedWhenClosed = false
         appearance = NSAppearance(named: .darkAqua)
         setFrame(screen.visibleFrame, display: false)
+        NotificationCenter.default.addObserver(self, selector: #selector(pin), name: NSWindow.didMoveNotification, object: self)
+        NotificationCenter.default.addObserver(self, selector: #selector(pin), name: NSWindow.didResizeNotification, object: self)
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(pin), name: NSApplication.didChangeScreenParametersNotification, object: nil)
+    }
+
+    /// The full visible area of the main screen, including the strip Stage Manager reserves.
+    var pinnedFrame: CGRect { (NSScreen.main ?? screen ?? NSScreen.screens[0]).visibleFrame }
+
+    /// Stage Manager shifts the window right to make room for its strip; put it back so cards get the full width.
+    @objc func pin() {
+        // A web card's element fullscreen changes the screen's visible area; leave the canvas alone meanwhile.
+        guard frame != pinnedFrame, !NSApp.currentSystemPresentationOptions.contains(.fullScreen) else { return }
+        NSLog("Float: re-pinning window from %@", "\(frame)")
+        setFrame(pinnedFrame, display: true)
     }
 
     override var canBecomeKey: Bool { true }

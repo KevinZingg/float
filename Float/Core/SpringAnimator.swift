@@ -33,10 +33,12 @@ final class SpringAnimator: NSObject {
     private var spring = Spring.standard
     private var value: [CGFloat] = []
     private var velocity: [CGFloat] = []
-    private var target: [CGFloat] = []
+    private var targetValues: [CGFloat] = []
     private var lastTime: CFTimeInterval = 0
 
     var isRunning: Bool { link != nil }
+    /// Where the running animation is heading.
+    var target: CGRect? { isRunning ? CGRect(x: targetValues[0], y: targetValues[1], width: targetValues[2], height: targetValues[3]) : nil }
 
     init(view: NSView) {
         self.view = view
@@ -57,7 +59,7 @@ final class SpringAnimator: NSObject {
         let f = view.frame
         value = [f.minX, f.minY, f.width, f.height]
         velocity = [v.dx, v.dy, 0, 0]
-        target = [frame.minX, frame.minY, frame.width, frame.height]
+        targetValues = [frame.minX, frame.minY, frame.width, frame.height]
         self.spring = spring
         lastTime = CACurrentMediaTime()
         if link == nil {
@@ -80,14 +82,14 @@ final class SpringAnimator: NSObject {
         while remaining > 0 {
             let dt = min(remaining, 1.0 / 240)
             for i in value.indices {
-                (value[i], velocity[i]) = spring.step(value: value[i], velocity: velocity[i], target: target[i], dt: dt)
+                (value[i], velocity[i]) = spring.step(value: value[i], velocity: velocity[i], target: targetValues[i], dt: dt)
             }
             remaining -= dt
         }
         let settled = value.indices.allSatisfy {
-            Spring.isSettled(value: value[$0], velocity: velocity[$0], target: target[$0])
+            Spring.isSettled(value: value[$0], velocity: velocity[$0], target: targetValues[$0])
         }
-        let v = settled ? target : value
+        let v = settled ? targetValues : value
         view?.frame = CGRect(x: v[0], y: v[1], width: v[2], height: v[3])
         if settled { stop() }
     }

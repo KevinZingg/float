@@ -53,6 +53,16 @@ enum Settings {
 
     static let defaultURL = "localhost:3000"
     static let localRetryInterval: TimeInterval = 2
+    /// Schemes a web card loads itself; anything else (mailto:, zoommtg:, …) goes to its own app.
+    static let webSchemes: Set<String> = ["http", "https", "about", "data", "blob", "javascript"]
+    static let popupWidthRange: ClosedRange<CGFloat> = 400...800
+    static let popupHeightRange: ClosedRange<CGFloat> = 250...800
+    static let toastHeight: CGFloat = 28
+    static let toastDuration: TimeInterval = 4
+    static let promptCornerRadius: CGFloat = 14
+    static let promptMaxWidth: CGFloat = 460
+    static let cardEntranceScale: CGFloat = 0.92
+    static let cardExitDuration: TimeInterval = 0.2
 
     // Global hotkeys (⌥⌘)
     private static let optCmd = UInt32(optionKey | cmdKey)

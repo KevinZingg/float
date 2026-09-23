@@ -25,6 +25,8 @@ final class CardView: NSView {
     private var isHovered = false
     private var isMoving = false
     private var moveOffset = CGVector.zero
+    /// Set while the exit animation runs so the fading card ignores clicks.
+    private var isClosing = false
 
     private enum Gesture { case move, resize(Edges) }
     private var gesture: Gesture?
@@ -204,7 +206,7 @@ final class CardView: NSView {
     }
 
     override func hitTest(_ point: NSPoint) -> NSView? {
-        guard let hit = super.hitTest(point) else { return nil }
+        guard !isClosing, let hit = super.hitTest(point) else { return nil }
         let local = convert(point, from: superview)
         let commandDrag = NSApp.currentEvent?.type == .leftMouseDown
             && NSEvent.modifierFlags.contains(.command)
@@ -266,7 +268,7 @@ final class CardView: NSView {
         guard isMoving, let superview else { return }
         moveOffset = offset
         tracker.add(CGPoint(x: offset.dx, y: offset.dy), at: time)
-        let bounds = (superview as? CanvasView)?.layoutBounds ?? superview.bounds
+        let bounds = superview.bounds
         frame = Snapping.rubberBand(startFrame.offsetBy(dx: offset.dx, dy: offset.dy), in: bounds)
     }
 
@@ -284,13 +286,8 @@ final class CardView: NSView {
     /// Scales the card up slightly and deepens its shadow while it is being dragged.
     private func setLifted(_ lifted: Bool) {
         guard let layer else { return }
-        let scale = lifted ? Settings.liftScale : 1
-        // AppKit-backed layers anchor at (0,0), so scale around the center explicitly.
-        var t = CATransform3DMakeTranslation(bounds.midX, bounds.midY, 0)
-        t = CATransform3DScale(t, scale, scale, 1)
-        t = CATransform3DTranslate(t, -bounds.midX, -bounds.midY, 0)
         let values: [(String, Any)] = [
-            ("transform", NSValue(caTransform3D: t)),
+            ("transform", NSValue(caTransform3D: centerScale(lifted ? Settings.liftScale : 1))),
             ("shadowRadius", lifted ? Settings.liftShadowRadius : Settings.shadowRadius),
             ("shadowOpacity", lifted ? Settings.liftShadowOpacity : Settings.shadowOpacity),
             ("shadowOffset", NSValue(size: lifted ? Settings.liftShadowOffset : Settings.shadowOffset)),
@@ -303,6 +300,54 @@ final class CardView: NSView {
             layer.add(anim, forKey: key)
             layer.setValue(value, forKeyPath: key)
         }
+    }
+
+    /// AppKit-backed layers anchor at (0,0), so scale around the center explicitly.
+    private func centerScale(_ scale: CGFloat) -> CATransform3D {
+        var t = CATransform3DMakeTranslation(bounds.midX, bounds.midY, 0)
+        t = CATransform3DScale(t, scale, scale, 1)
+        return CATransform3DTranslate(t, -bounds.midX, -bounds.midY, 0)
+    }
+
+    // MARK: - Entrance / exit
+
+    /// Scale 0.92 → 1 and fade in on the card spring (fade only with Reduce Motion).
+    func animateEntrance() {
+        guard let layer else { return }
+        let spring = Spring.standard
+        var animations: [(String, Any, Any)] = [("opacity", 0, 1)]
+        if !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
+            animations.append(("transform", NSValue(caTransform3D: centerScale(Settings.cardEntranceScale)),
+                               NSValue(caTransform3D: CATransform3DIdentity)))
+        }
+        for (key, from, to) in animations {
+            let anim = CASpringAnimation(keyPath: key)
+            anim.mass = 1
+            anim.stiffness = spring.stiffness
+            anim.damping = spring.damping
+            anim.fromValue = from
+            anim.toValue = to
+            anim.duration = anim.settlingDuration
+            layer.add(anim, forKey: "entrance-\(key)")
+        }
+    }
+
+    /// The reverse of the entrance; `completion` runs once the card is invisible.
+    func animateExit(completion: @escaping @MainActor () -> Void) {
+        isClosing = true
+        guard let layer else { completion(); return }
+        CATransaction.begin()
+        CATransaction.setCompletionBlock { MainActor.assumeIsolated { completion() } }
+        for (key, to) in [("opacity", 0 as Any), ("transform", NSValue(caTransform3D: centerScale(Settings.cardEntranceScale)))] {
+            let anim = CABasicAnimation(keyPath: key)
+            anim.toValue = to
+            anim.duration = Settings.cardExitDuration
+            anim.timingFunction = CAMediaTimingFunction(name: .easeIn)
+            anim.fillMode = .forwards
+            anim.isRemovedOnCompletion = false
+            layer.add(anim, forKey: "exit-\(key)")
+        }
+        CATransaction.commit()
     }
 
     private func resized(edges e: Edges, dx: CGFloat, dy: CGFloat) -> CGRect {

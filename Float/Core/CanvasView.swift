@@ -11,13 +11,4 @@ final class CanvasView: NSView {
     }
 
     required init?(coder: NSCoder) { fatalError() }
-
-    /// The part of the canvas actually on screen. Stage Manager may shift the window past the
-    /// screen edge to make room for its strip, so layout must not use the full bounds.
-    var layoutBounds: CGRect {
-        guard let window, let screen = window.screen ?? NSScreen.main else { return bounds }
-        let visible = window.convertFromScreen(screen.visibleFrame)
-        let rect = convert(visible, from: nil).intersection(bounds)
-        return rect.isNull ? bounds : rect
-    }
 }

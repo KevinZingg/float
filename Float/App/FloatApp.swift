@@ -30,9 +30,6 @@ final class FloatApp: NSObject, NSApplicationDelegate {
 
         NSApp.mainMenu = buildMenu()
         registerHotkeys()
-        NotificationCenter.default.addObserver(
-            self, selector: #selector(screenChanged),
-            name: NSApplication.didChangeScreenParametersNotification, object: nil)
         for name in [NSWindow.didMoveNotification, NSWindow.didResizeNotification] {
             NotificationCenter.default.addObserver(
                 self, selector: #selector(windowGeometryChanged), name: name, object: window)
@@ -61,10 +58,6 @@ final class FloatApp: NSObject, NSApplicationDelegate {
 
     @objc private func windowGeometryChanged() { manager.clampAll() }
 
-    @objc private func screenChanged() {
-        if let screen = NSScreen.main { window.setFrame(screen.visibleFrame, display: true) }
-    }
-
     // MARK: - Actions
 
     private func bringToFront() {
@@ -91,17 +84,26 @@ final class FloatApp: NSObject, NSApplicationDelegate {
     func newPreview(url: String, spawnFrom: CGRect? = nil) {
         bringToFront()
         let web = WebCard(url: url)
-        let card = manager.add(web, size: Settings.previewSize, spawnFrom: spawnFrom)
+        wire(web, to: manager.add(web, size: Settings.previewSize, spawnFrom: spawnFrom))
+    }
+
+    /// Hooks a web card up to the manager, including the cards it opens (popups of popups too).
+    private func wire(_ web: WebCard, to card: CardView) {
         web.onSuggestAspect = { [weak self, weak card] aspect in
             guard let self, let card else { return }
             self.manager.setAspect(aspect, for: card)
+        }
+        web.onOpenCard = { [weak self, weak card] newWeb, sizeHint in
+            guard let self, let card else { return }
+            self.bringToFront()
+            self.wire(newWeb, to: self.manager.add(newWeb, size: sizeHint ?? card.frame.size, beside: card))
         }
     }
 
     @objc func showLauncher() {
         bringToFront()
         guard let canvas = window.contentView else { return }
-        launcher.show(in: canvas, bounds: manager.canvas.layoutBounds)
+        launcher.show(in: canvas, bounds: manager.canvas.bounds)
     }
 
     private func launch(_ action: LaunchAction) {
@@ -114,6 +116,9 @@ final class FloatApp: NSObject, NSApplicationDelegate {
             newPreview(url: url, spawnFrom: from)
         }
     }
+
+    /// Forgets every remembered camera/mic decision, so sites ask again.
+    @objc func resetSitePermissions() { SitePermissions.resetAll() }
 
     @objc func arrangeAll() { bringToFront(); manager.arrangeAll() }
     @objc func focusNext() { bringToFront(); manager.cycleFocus(by: 1) }
@@ -147,6 +152,8 @@ final class FloatApp: NSObject, NSApplicationDelegate {
         let main = NSMenu()
 
         let appMenu = NSMenu()
+        appMenu.addItem(item("Reset Site Permissions", #selector(resetSitePermissions), ""))
+        appMenu.addItem(.separator())
         appMenu.addItem(withTitle: "Hide Float", action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
         appMenu.addItem(.separator())
         appMenu.addItem(withTitle: "Quit Float", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")

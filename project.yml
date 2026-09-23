@@ -23,6 +23,8 @@ targets:
         CFBundleVersion: "1"
         LSMinimumSystemVersion: "14.0"
         NSPrincipalClass: NSApplication
+        NSCameraUsageDescription: Web previews can use your camera when a site asks and you allow it.
+        NSMicrophoneUsageDescription: Web previews can use your microphone when a site asks and you allow it.
         NSAppTransportSecurity:
           NSAllowsLocalNetworking: true
           NSAllowsArbitraryLoadsInWebContent: true
