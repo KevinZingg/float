@@ -134,7 +134,9 @@ final class WebCard: NSObject, CardContent {
         onTitleChange?(newTitle)
     }
 
+    /// Skipped until the card has a width, otherwise a new card briefly lays out at a ~0 zoom.
     private func updateZoom() {
+        guard host.bounds.width >= 1 else { return }
         webView.pageZoom = viewport.pageZoom(forCardWidth: host.bounds.width)
     }
 
@@ -239,6 +241,9 @@ final class WebCard: NSObject, CardContent {
 
 extension WebCard: WKNavigationDelegate {
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) { clearError() }
+
+    /// Re-applied per navigation in case WebKit resets zoom when it swaps web-content processes.
+    func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) { updateZoom() }
 
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
         showError(error, for: failingURL(error) ?? webView.url)
