@@ -53,3 +53,66 @@ enum Snapping {
 extension CGRect {
     var center: CGPoint { CGPoint(x: midX, y: midY) }
 }
+
+// MARK: - Arrange All
+
+extension Snapping {
+    /// Terminals in a grid on the left, previews stacked on the right; everything fits in `bounds`.
+    /// `previewAspects` holds each preview's locked content aspect (nil = default preview shape).
+    static func arrange(
+        terminals: Int, previewAspects: [CGFloat?], in bounds: CGRect,
+        gap: CGFloat = Settings.gap, chrome: CGFloat = Settings.chromeHeight
+    ) -> (terminals: [CGRect], previews: [CGRect]) {
+        let a = area(bounds)
+        let previewColumn: CGFloat
+        if previewAspects.isEmpty {
+            previewColumn = 0
+        } else if terminals == 0 {
+            previewColumn = min(a.width, Settings.previewSize.width * 1.5)
+        } else {
+            previewColumn = min(max(Settings.previewSize.width, a.width * 0.3), a.width * 0.45)
+        }
+
+        // Previews: right-aligned column, each at most an equal share of the height.
+        var previews: [CGRect] = []
+        if !previewAspects.isEmpty {
+            let n = CGFloat(previewAspects.count)
+            let maxH = (a.height - gap * (n - 1)) / n
+            let defaultAspect = Settings.previewSize.width / (Settings.previewSize.height - chrome)
+            var y = a.minY
+            for aspect in previewAspects {
+                let ratio = aspect ?? defaultAspect
+                var w = previewColumn
+                var h = w / ratio + chrome
+                if h > maxH { h = maxH; w = (h - chrome) * ratio }
+                previews.append(CGRect(x: a.maxX - w, y: y, width: w, height: h))
+                y += h + gap
+            }
+        }
+
+        // Terminals: grid in what's left, cells shaped like the default terminal but never larger than 1.4x it.
+        var result: [CGRect] = []
+        if terminals > 0 {
+            let rect = CGRect(x: a.minX, y: a.minY, width: a.width - (previewColumn > 0 ? previewColumn + gap : 0), height: a.height)
+            let target = Settings.terminalSize.width / Settings.terminalSize.height
+            let cols = (1...terminals).min { c1, c2 in
+                abs(log(cellAspect(terminals, c1, rect, gap) / target)) < abs(log(cellAspect(terminals, c2, rect, gap) / target))
+            }!
+            let rows = (terminals + cols - 1) / cols
+            let cellW = min((rect.width - gap * CGFloat(cols - 1)) / CGFloat(cols), Settings.terminalSize.width * 1.4)
+            let cellH = min((rect.height - gap * CGFloat(rows - 1)) / CGFloat(rows), Settings.terminalSize.height * 1.4)
+            for i in 0..<terminals {
+                let col = CGFloat(i % cols), row = CGFloat(i / cols)
+                result.append(CGRect(x: rect.minX + col * (cellW + gap), y: rect.minY + row * (cellH + gap), width: cellW, height: cellH))
+            }
+        }
+        return (result, previews)
+    }
+
+    private static func cellAspect(_ n: Int, _ cols: Int, _ rect: CGRect, _ gap: CGFloat) -> CGFloat {
+        let rows = (n + cols - 1) / cols
+        let w = (rect.width - gap * CGFloat(cols - 1)) / CGFloat(cols)
+        let h = (rect.height - gap * CGFloat(rows - 1)) / CGFloat(rows)
+        return max(w, 1) / max(h, 1)
+    }
+}

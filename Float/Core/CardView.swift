@@ -12,12 +12,15 @@ final class CardView: NSView {
     /// Drag released, with the release velocity in canvas points per second.
     var onMoveEnded: ((CardView, CGVector) -> Void)?
     var onResizeEnded: ((CardView) -> Void)?
+    var onAspectPicked: ((CardView, CGFloat?) -> Void)?
+    var onSizePicked: ((CardView, SizePreset) -> Void)?
     var onCloseRequested: ((CardView) -> Void)?
 
     private let container = FlippedView()
     private let chrome = NSView()
     private let titleLabel = NSTextField(labelWithString: "")
     private let closeButton = NSButton()
+    private let presetButton = NSButton()
 
     private enum Gesture { case move, resize(Edges) }
     private var gesture: Gesture?
@@ -70,6 +73,13 @@ final class CardView: NSView {
         closeButton.action = #selector(closeClicked)
         chrome.addSubview(closeButton)
 
+        presetButton.image = NSImage(systemSymbolName: "aspectratio", accessibilityDescription: "Size")
+        presetButton.isBordered = false
+        presetButton.contentTintColor = .secondaryLabelColor
+        presetButton.target = self
+        presetButton.action = #selector(showPresets)
+        chrome.addSubview(presetButton)
+
         if let accessory = content.accessory { chrome.addSubview(accessory) }
         container.addSubview(content.view)
 
@@ -90,7 +100,8 @@ final class CardView: NSView {
         chrome.frame = CGRect(x: 0, y: 0, width: bounds.width, height: h)
         let button: CGFloat = 22
         closeButton.frame = CGRect(x: bounds.width - button - 6, y: (h - button) / 2, width: button, height: button)
-        let trailing = closeButton.frame.minX - 4
+        presetButton.frame = closeButton.frame.offsetBy(dx: -button, dy: 0)
+        let trailing = presetButton.frame.minX - 4
 
         if let accessory = content.accessory {
             titleLabel.isHidden = true
@@ -110,6 +121,37 @@ final class CardView: NSView {
     }
 
     @objc private func closeClicked() { onCloseRequested?(self) }
+
+    // MARK: - Presets
+
+    @objc private func showPresets() {
+        let menu = NSMenu()
+        menu.addItem(withTitle: "Aspect", action: nil, keyEquivalent: "").isEnabled = false
+        for preset in AspectPreset.allCases {
+            let item = menu.addItem(withTitle: preset.rawValue, action: #selector(aspectPicked(_:)), keyEquivalent: "")
+            item.target = self
+            item.representedObject = preset.rawValue
+            item.state = preset.ratio == aspect ? .on : .off
+        }
+        menu.addItem(.separator())
+        menu.addItem(withTitle: "Size", action: nil, keyEquivalent: "").isEnabled = false
+        for preset in SizePreset.allCases {
+            let item = menu.addItem(withTitle: preset.rawValue, action: #selector(sizePicked(_:)), keyEquivalent: "")
+            item.target = self
+            item.representedObject = preset.rawValue
+        }
+        menu.popUp(positioning: nil, at: CGPoint(x: presetButton.frame.minX, y: presetButton.frame.maxY), in: chrome)
+    }
+
+    @objc private func aspectPicked(_ item: NSMenuItem) {
+        guard let raw = item.representedObject as? String, let preset = AspectPreset(rawValue: raw) else { return }
+        onAspectPicked?(self, preset.ratio)
+    }
+
+    @objc private func sizePicked(_ item: NSMenuItem) {
+        guard let raw = item.representedObject as? String, let preset = SizePreset(rawValue: raw) else { return }
+        onSizePicked?(self, preset)
+    }
 
     // MARK: - Hit testing
 

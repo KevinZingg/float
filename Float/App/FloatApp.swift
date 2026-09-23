@@ -43,6 +43,8 @@ final class FloatApp: NSObject, NSApplicationDelegate {
         for _ in 0..<3 { newTerminal() }
         newPreview(url: "https://example.com")
         newPreview()
+        // Give Stage Manager a moment to place the window so the layout uses the final bounds.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak self] in self?.arrangeAll() }
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
@@ -83,6 +85,7 @@ final class FloatApp: NSObject, NSApplicationDelegate {
         }
     }
 
+    @objc func arrangeAll() { bringToFront(); manager.arrangeAll() }
     @objc func focusNext() { bringToFront(); manager.cycleFocus(by: 1) }
     @objc func focusPrevious() { bringToFront(); manager.cycleFocus(by: -1) }
     @objc func closeCard() { manager.closeFocused() }
@@ -94,6 +97,7 @@ final class FloatApp: NSObject, NSApplicationDelegate {
         let bindings: [(Hotkey, () -> Void)] = [
             (Settings.hotkeyNewTerminal, { [weak self] in self?.newTerminal() }),
             (Settings.hotkeyNewPreview, { [weak self] in self?.newPreview() }),
+            (Settings.hotkeyArrange, { [weak self] in self?.arrangeAll() }),
             (Settings.hotkeyNext, { [weak self] in self?.focusNext() }),
             (Settings.hotkeyPrevious, { [weak self] in self?.focusPrevious() }),
         ]
@@ -138,6 +142,7 @@ final class FloatApp: NSObject, NSApplicationDelegate {
         main.addItem(submenu: view, title: "View")
 
         let win = NSMenu()
+        win.addItem(item("Arrange All", #selector(arrangeAll), "a", [.command, .option]))
         win.addItem(item("Next Card", #selector(focusNext), String(UnicodeScalar(NSRightArrowFunctionKey)!), [.command, .option]))
         win.addItem(item("Previous Card", #selector(focusPrevious), String(UnicodeScalar(NSLeftArrowFunctionKey)!), [.command, .option]))
         main.addItem(submenu: win, title: "Window")

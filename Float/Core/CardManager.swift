@@ -25,6 +25,8 @@ final class CardManager {
         card.onMoveEnded = { [weak self] in self?.settle($0, velocity: $1) }
         card.onResizeEnded = { [weak self] in self?.settle($0, velocity: .zero) }
         card.onCloseRequested = { [weak self] in self?.close($0) }
+        card.onAspectPicked = { [weak self] in self?.setAspect($1, for: $0) }
+        card.onSizePicked = { [weak self] in self?.applySize($1, to: $0) }
         content.onRequestClose = { [weak self, weak card] in
             guard let card else { return }
             self?.remove(card)
@@ -91,6 +93,26 @@ final class CardManager {
         guard target != card.frame else { return }
         let spring: Spring = Fling.isFling(velocity) ? .standard : .rubberBand
         card.mover.animate(to: target, velocity: velocity, spring: spring)
+    }
+
+    /// Terminals in a grid on the left, previews stacked on the right, all springing into place.
+    func arrangeAll() {
+        let terminals = cards.filter { $0.content.kind == .terminal }
+        let previews = cards.filter { $0.content.kind == .web }
+        let layout = Snapping.arrange(
+            terminals: terminals.count, previewAspects: previews.map(\.aspect), in: canvas.layoutBounds)
+        for (card, frame) in zip(terminals + previews, layout.terminals + layout.previews) {
+            setFrame(frame, for: card)
+        }
+    }
+
+    /// Applies an S/M/L width, keeping the locked aspect or the current proportions.
+    func applySize(_ preset: SizePreset, to card: CardView) {
+        var f = card.frame
+        let chrome = Settings.chromeHeight
+        let ratio = card.aspect ?? f.width / max(f.height - chrome, 1)
+        f.size = CGSize(width: preset.width, height: preset.width / ratio + chrome)
+        setFrame(Snapping.clamp(f, in: canvas.layoutBounds), for: card)
     }
 
     /// Locks (or frees) a card's content aspect and resizes it to match, keeping its width.
