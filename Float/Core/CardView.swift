@@ -48,13 +48,13 @@ final class CardView: NSView {
         container.layer?.cornerRadius = Settings.cornerRadius
         container.layer?.cornerCurve = .continuous
         container.layer?.masksToBounds = true
-        container.layer?.backgroundColor = NSColor(white: 0.08, alpha: 1).cgColor
+        container.layer?.backgroundColor = Settings.cardBackground.cgColor
         container.layer?.borderColor = NSColor(white: 1, alpha: 0.08).cgColor
         container.layer?.borderWidth = 1
         addSubview(container)
 
         chrome.wantsLayer = true
-        chrome.layer?.backgroundColor = NSColor(white: 0.14, alpha: 1).cgColor
+        chrome.layer?.backgroundColor = Settings.chromeBackground.cgColor
         container.addSubview(chrome)
 
         titleLabel.font = .systemFont(ofSize: 11, weight: .medium)
