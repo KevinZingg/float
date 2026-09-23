@@ -1,0 +1,37 @@
+name: Float
+options:
+  bundleIdPrefix: ch.kevinzingg
+  deploymentTarget:
+    macOS: "14.0"
+packages:
+  SwiftTerm:
+    url: https://github.com/migueldeicaza/SwiftTerm
+    exactVersion: 1.11.2  # 1.12+ needs the Metal toolchain; 1.19+ also a build plugin
+targets:
+  Float:
+    type: application
+    platform: macOS
+    sources: [Float]
+    dependencies:
+      - package: SwiftTerm
+    info:
+      path: Float/Info.plist
+      properties:
+        CFBundleName: Float
+        CFBundleDisplayName: Float
+        CFBundleShortVersionString: "0.1.0"
+        CFBundleVersion: "1"
+        LSMinimumSystemVersion: "14.0"
+        NSPrincipalClass: NSApplication
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
+          NSAllowsArbitraryLoadsInWebContent: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: ch.kevinzingg.float
+        SWIFT_VERSION: "6.0"
+        ENABLE_HARDENED_RUNTIME: NO
+        CODE_SIGN_IDENTITY: "-"
+        CODE_SIGN_STYLE: Manual
+        ENABLE_APP_SANDBOX: NO
+        GENERATE_INFOPLIST_FILE: NO
