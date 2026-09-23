@@ -18,7 +18,7 @@ final class ToastView: PillView {
             label.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 14),
             label.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -14),
             label.centerYAnchor.constraint(equalTo: centerYAnchor),
-            heightAnchor.constraint(equalToConstant: Settings.toastHeight),
+            heightAnchor.constraint(equalToConstant: Config.toastHeight),
         ])
     }
 
@@ -51,7 +51,7 @@ final class ToastView: PillView {
         NSAnimationContext.runAnimationGroup { $0.duration = 0.15; animator().alphaValue = 1 }
         hideTimer?.invalidate()
         guard !sticky else { return }
-        hideTimer = Timer.scheduledTimer(withTimeInterval: Settings.toastDuration, repeats: false) { [weak self] _ in
+        hideTimer = Timer.scheduledTimer(withTimeInterval: Config.toastDuration, repeats: false) { [weak self] _ in
             MainActor.assumeIsolated { self?.hide() }
         }
     }

@@ -23,16 +23,16 @@ final class EmptyStateView: NSView {
         let inkColor = dark ? Theme.ink : Theme.night
 
         // Plex Mono advances 0.6 em, the grid's aspect, so one line per point size keeps the cells square to the source.
-        let size = min(Settings.emptyStateMaxGlyph, bounds.height * 0.6 / CGFloat(rows.count))
+        let size = min(Config.emptyStateMaxGlyph, bounds.height * 0.6 / CGFloat(rows.count))
         let font = Theme.mono(size)
         let width = CGFloat(rows[0].count) * size * 0.6
-        let label = Theme.label("⌥ space", color: inkColor.withAlphaComponent(Settings.emptyStateLabelAlpha), size: 11)
+        let label = Theme.label("⌥ space", color: inkColor.withAlphaComponent(Config.emptyStateLabelAlpha), size: 11)
         let labelSize = label.size()
         let total = CGFloat(rows.count) * size + 28 + labelSize.height
         var y = (bounds.height - total) / 2
         let x = (bounds.width - width) / 2
         let attrs: [NSAttributedString.Key: Any] = [
-            .font: font, .foregroundColor: inkColor.withAlphaComponent(Settings.emptyStateAlpha),
+            .font: font, .foregroundColor: inkColor.withAlphaComponent(Config.emptyStateAlpha),
         ]
         for row in rows {
             (row as NSString).draw(at: CGPoint(x: x, y: y), withAttributes: attrs)

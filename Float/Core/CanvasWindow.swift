@@ -21,7 +21,7 @@ final class CanvasWindow: NSWindow {
         }
         // Nearly invisible but non-zero, so clicks on empty canvas stay ours instead of passing through
         // to the wallpaper (where Stage Manager's "click wallpaper to reveal desktop" would hide every card).
-        backgroundColor = NSColor(white: 0, alpha: Settings.canvasBackgroundAlpha)
+        backgroundColor = NSColor(white: 0, alpha: Config.canvasBackgroundAlpha)
         isOpaque = false
         hasShadow = false
         isMovable = false

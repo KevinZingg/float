@@ -10,7 +10,7 @@ final class TerminalCard: CardContent {
     /// ⌘+ / ⌘- steps on top of the size set in Settings.
     private var zoomSteps: CGFloat = 0
     private var fontSize: CGFloat {
-        min(max(Settings.terminalFontSize + zoomSteps, Settings.terminalFontRange.lowerBound), Settings.terminalFontRange.upperBound)
+        min(max(Config.terminalFontSize + zoomSteps, Config.terminalFontRange.lowerBound), Config.terminalFontRange.upperBound)
     }
     var onTitleChange: ((String) -> Void)?
     var onRequestClose: (() -> Void)?
@@ -30,7 +30,7 @@ final class TerminalCard: CardContent {
         terminal.processDelegate = self
         view.wantsLayer = true
         view.frame = CGRect(x: 0, y: 0, width: 400, height: 300)
-        terminal.frame = view.bounds.insetBy(dx: Settings.terminalInset, dy: Settings.terminalInset)
+        terminal.frame = view.bounds.insetBy(dx: Config.terminalInset, dy: Config.terminalInset)
         terminal.autoresizingMask = [.width, .height]
         view.addSubview(terminal)
         applyTheme()

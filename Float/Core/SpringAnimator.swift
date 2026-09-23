@@ -5,14 +5,14 @@ struct Spring {
     let stiffness: CGFloat
     let damping: CGFloat
 
-    init(dampingRatio: CGFloat = Settings.springDampingRatio, response: CGFloat = Settings.springResponse) {
+    init(dampingRatio: CGFloat = Config.springDampingRatio, response: CGFloat = Config.springResponse) {
         stiffness = pow(2 * .pi / response, 2)
         damping = 4 * .pi * dampingRatio / response
     }
 
     /// Reads the user's damping ratio each time, so the Settings slider applies live.
     static var standard: Spring { Spring() }
-    static let rubberBand = Spring(dampingRatio: Settings.rubberBandDampingRatio, response: Settings.rubberBandResponse)
+    static let rubberBand = Spring(dampingRatio: Config.rubberBandDampingRatio, response: Config.rubberBandResponse)
 
     /// One semi-implicit Euler step toward `target`. Returns the new value and velocity.
     func step(value x: CGFloat, velocity v: CGFloat, target: CGFloat, dt: CGFloat) -> (value: CGFloat, velocity: CGFloat) {
@@ -22,7 +22,7 @@ struct Spring {
     }
 
     static func isSettled(value x: CGFloat, velocity v: CGFloat, target: CGFloat) -> Bool {
-        abs(x - target) < Settings.springRestDistance && abs(v) < Settings.springRestSpeed
+        abs(x - target) < Config.springRestDistance && abs(v) < Config.springRestSpeed
     }
 }
 
@@ -51,7 +51,7 @@ final class SpringAnimator: NSObject {
         if NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
             stop()
             NSAnimationContext.runAnimationGroup { ctx in
-                ctx.duration = Settings.reducedMotionDuration
+                ctx.duration = Config.reducedMotionDuration
                 ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
                 view.animator().frame = frame
             }

@@ -35,9 +35,9 @@ final class CardManager {
     /// With `spawnFrom`, the card appears centered there and springs into a free spot.
     func add(_ content: CardContent, size: NSSize, aspect: CGFloat? = nil, spawnFrom: CGRect? = nil) -> CardView {
         let bounds = canvas.bounds
-        let step = CGFloat(cards.count % 8) * Settings.cascadeOffset
+        let step = CGFloat(cards.count % 8) * Config.cascadeOffset
         var start = Snapping.clamp(CGRect(
-            x: bounds.minX + Settings.padding + step, y: bounds.minY + Settings.padding + step,
+            x: bounds.minX + Config.padding + step, y: bounds.minY + Config.padding + step,
             width: size.width, height: size.height), in: bounds)
         if let spawnFrom {
             start.origin = CGPoint(x: spawnFrom.midX - size.width / 2, y: spawnFrom.midY - size.height / 2)

@@ -18,7 +18,7 @@ final class WebCard: NSObject, CardContent {
     private var retryTimer: Timer?
     private var observations: [NSKeyValueObservation] = []
     private(set) var title = "Preview"
-    private(set) var viewport = Settings.defaultViewport
+    private(set) var viewport = Config.defaultViewport
     var onTitleChange: ((String) -> Void)?
     var onRequestClose: (() -> Void)?
     /// Asks the card to take a content aspect ratio (nil = free).
@@ -31,7 +31,7 @@ final class WebCard: NSObject, CardContent {
     var view: NSView { host }
     var accessory: NSView? { controls }
 
-    convenience init(url input: String = Settings.defaultURL) {
+    convenience init(url input: String = Config.defaultURL) {
         let config = WKWebViewConfiguration()
         config.websiteDataStore = .default()
         config.preferences.isElementFullscreenEnabled = true
@@ -106,7 +106,7 @@ final class WebCard: NSObject, CardContent {
         if nsError.code == NSURLErrorCannotConnectToHost, let url, URLInput.isLocal(url) {
             errorLabel.stringValue = "Nothing on :\(url.port.map(String.init) ?? host) yet… retrying"
             retryTimer?.invalidate()
-            retryTimer = Timer.scheduledTimer(withTimeInterval: Settings.localRetryInterval, repeats: false) { [weak self] _ in
+            retryTimer = Timer.scheduledTimer(withTimeInterval: Config.localRetryInterval, repeats: false) { [weak self] _ in
                 MainActor.assumeIsolated { self?.load(url) }
             }
         } else {

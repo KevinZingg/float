@@ -18,7 +18,7 @@ final class FloatApp: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         Theme.registerFonts()
-        Settings.registerDefaults()
+        Config.registerDefaults()
         applyLaunchArguments()
         let screen = NSScreen.main ?? NSScreen.screens[0]
         window = CanvasWindow(screen: screen)
@@ -51,7 +51,7 @@ final class FloatApp: NSObject, NSApplicationDelegate {
     private func applyLaunchArguments() {
         let args = CommandLine.arguments
         if let i = args.firstIndex(of: "--theme"), i + 1 < args.count, let name = Theme.Name(rawValue: args[i + 1]) {
-            UserDefaults.standard.set(name.rawValue, forKey: Settings.Keys.theme)
+            UserDefaults.standard.set(name.rawValue, forKey: Config.Keys.theme)
         }
     }
 
@@ -60,7 +60,7 @@ final class FloatApp: NSObject, NSApplicationDelegate {
     private var settingsSnapshot = ""
     private static var currentSettings: String {
         let d = UserDefaults.standard
-        return [Settings.Keys.theme, Settings.Keys.terminalFontSize, Settings.Keys.springDampingRatio, Settings.Keys.padding]
+        return [Config.Keys.theme, Config.Keys.terminalFontSize, Config.Keys.springDampingRatio, Config.Keys.padding]
             .map { "\(d.object(forKey: $0) ?? "")" }.joined(separator: "|")
     }
 
@@ -118,15 +118,15 @@ final class FloatApp: NSObject, NSApplicationDelegate {
     func newTerminal(directory: String?, command: String? = nil, spawnFrom: CGRect? = nil) {
         bringToFront()
         let dir = directory ?? (manager.focused?.content as? TerminalCard)?.currentDirectory ?? TerminalCard.lastDirectory
-        manager.add(TerminalCard(directory: dir, command: command), size: Settings.terminalSize, spawnFrom: spawnFrom)
+        manager.add(TerminalCard(directory: dir, command: command), size: Config.terminalSize, spawnFrom: spawnFrom)
     }
 
-    @objc func newPreview() { newPreview(url: Settings.defaultURL) }
+    @objc func newPreview() { newPreview(url: Config.defaultURL) }
 
     func newPreview(url: String, spawnFrom: CGRect? = nil) {
         bringToFront()
         let web = WebCard(url: url)
-        wire(web, to: manager.add(web, size: Settings.previewSize, spawnFrom: spawnFrom))
+        wire(web, to: manager.add(web, size: Config.previewSize, spawnFrom: spawnFrom))
     }
 
     /// Hooks a web card up to the manager, including the cards it opens (popups of popups too).
@@ -172,19 +172,19 @@ final class FloatApp: NSObject, NSApplicationDelegate {
 
     private func registerHotkeys() {
         let bindings: [(Hotkey, () -> Void)] = [
-            (Settings.hotkeyNewTerminal, { [weak self] in self?.newTerminal() }),
-            (Settings.hotkeyNewPreview, { [weak self] in self?.newPreview() }),
-            (Settings.hotkeyArrange, { [weak self] in self?.arrangeAll() }),
-            (Settings.hotkeyNext, { [weak self] in self?.focusNext() }),
-            (Settings.hotkeyPrevious, { [weak self] in self?.focusPrevious() }),
+            (Config.hotkeyNewTerminal, { [weak self] in self?.newTerminal() }),
+            (Config.hotkeyNewPreview, { [weak self] in self?.newPreview() }),
+            (Config.hotkeyArrange, { [weak self] in self?.arrangeAll() }),
+            (Config.hotkeyNext, { [weak self] in self?.focusNext() }),
+            (Config.hotkeyPrevious, { [weak self] in self?.focusPrevious() }),
         ]
         for (key, action) in bindings where !Hotkeys.register(key, action: action) {
             NSLog("Float: hotkey \(key) is taken by another app")
         }
         let showLauncher: () -> Void = { [weak self] in self?.showLauncher() }
-        if !Hotkeys.register(Settings.hotkeyLauncher, action: showLauncher) {
+        if !Hotkeys.register(Config.hotkeyLauncher, action: showLauncher) {
             NSLog("Float: ⌥Space is taken by another app, using ⌥⌘Space for the launcher")
-            Hotkeys.register(Settings.hotkeyLauncherFallback, action: showLauncher)
+            Hotkeys.register(Config.hotkeyLauncherFallback, action: showLauncher)
             launcherHotkeyTitle = "⌥⌘ Space"
         }
     }

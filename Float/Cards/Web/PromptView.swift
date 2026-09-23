@@ -61,7 +61,7 @@ final class PromptView: PillView {
             centerXAnchor.constraint(equalTo: host.centerXAnchor),
             topAnchor.constraint(equalTo: host.topAnchor, constant: 12),
             widthAnchor.constraint(lessThanOrEqualTo: host.widthAnchor, constant: -24),
-            widthAnchor.constraint(lessThanOrEqualToConstant: Settings.promptMaxWidth),
+            widthAnchor.constraint(lessThanOrEqualToConstant: Config.promptMaxWidth),
         ])
     }
 

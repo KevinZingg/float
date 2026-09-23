@@ -16,7 +16,7 @@ enum WebNavigation {
     static func action(
         for url: URL?, modifiers: NSEvent.ModifierFlags, isLinkClick: Bool, shouldDownload: Bool
     ) -> Action {
-        if let scheme = url?.scheme?.lowercased(), !Settings.webSchemes.contains(scheme) { return .external }
+        if let scheme = url?.scheme?.lowercased(), !Config.webSchemes.contains(scheme) { return .external }
         if shouldDownload { return .download }
         guard isLinkClick, modifiers.contains(.command) else { return .allow }
         return modifiers.contains(.shift) ? .defaultBrowser : .newCard
@@ -31,8 +31,8 @@ enum WebNavigation {
     /// Card size for a popup's requested width/height (content size), clamped to S–L. nil = no hint.
     static func popupSize(width: CGFloat?, height: CGFloat?) -> CGSize? {
         guard let width, let height else { return nil }
-        let w = min(max(width, Settings.popupWidthRange.lowerBound), Settings.popupWidthRange.upperBound)
-        let h = min(max(height, Settings.popupHeightRange.lowerBound), Settings.popupHeightRange.upperBound)
+        let w = min(max(width, Config.popupWidthRange.lowerBound), Config.popupWidthRange.upperBound)
+        let h = min(max(height, Config.popupHeightRange.lowerBound), Config.popupHeightRange.upperBound)
         return CGSize(width: w, height: h + Theme.chromeHeight)
     }
 }

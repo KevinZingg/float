@@ -228,7 +228,7 @@ final class CardView: NSView {
     // MARK: - Hit testing
 
     private func edges(at p: CGPoint) -> Edges {
-        let z = Settings.resizeZone
+        let z = Config.resizeZone
         var e: Edges = []
         if p.x < z { e.insert(.left) }
         if p.x > bounds.width - z { e.insert(.right) }
@@ -320,7 +320,7 @@ final class CardView: NSView {
         guard let layer else { return }
         let t = Theme.current
         let values: [(String, Any)] = [
-            ("transform", NSValue(caTransform3D: centerScale(lifted ? Settings.liftScale : 1))),
+            ("transform", NSValue(caTransform3D: centerScale(lifted ? Config.liftScale : 1))),
             ("shadowRadius", lifted ? t.liftShadowRadius : t.shadowRadius),
             ("shadowOpacity", lifted ? t.liftShadowOpacity : t.shadowOpacity),
             ("shadowOffset", NSValue(size: lifted ? t.liftShadowOffset : t.shadowOffset)),
@@ -350,7 +350,7 @@ final class CardView: NSView {
         let spring = Spring.standard
         var animations: [(String, Any, Any)] = [("opacity", 0, 1)]
         if !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
-            animations.append(("transform", NSValue(caTransform3D: centerScale(Settings.cardEntranceScale)),
+            animations.append(("transform", NSValue(caTransform3D: centerScale(Config.cardEntranceScale)),
                                NSValue(caTransform3D: CATransform3DIdentity)))
         }
         for (key, from, to) in animations {
@@ -371,10 +371,10 @@ final class CardView: NSView {
         guard let layer else { completion(); return }
         CATransaction.begin()
         CATransaction.setCompletionBlock { MainActor.assumeIsolated { completion() } }
-        for (key, to) in [("opacity", 0 as Any), ("transform", NSValue(caTransform3D: centerScale(Settings.cardEntranceScale)))] {
+        for (key, to) in [("opacity", 0 as Any), ("transform", NSValue(caTransform3D: centerScale(Config.cardEntranceScale)))] {
             let anim = CABasicAnimation(keyPath: key)
             anim.toValue = to
-            anim.duration = Settings.cardExitDuration
+            anim.duration = Config.cardExitDuration
             anim.timingFunction = CAMediaTimingFunction(name: .easeIn)
             anim.fillMode = .forwards
             anim.isRemovedOnCompletion = false
@@ -384,7 +384,7 @@ final class CardView: NSView {
     }
 
     private func resized(edges e: Edges, dx: CGFloat, dy: CGFloat) -> CGRect {
-        let min = Settings.minCardSize
+        let min = Config.minCardSize
         var w = startFrame.width, h = startFrame.height
         if e.contains(.left) { w -= dx }
         if e.contains(.right) { w += dx }
@@ -407,7 +407,7 @@ final class CardView: NSView {
     }
 
     override func resetCursorRects() {
-        let z = Settings.resizeZone
+        let z = Config.resizeZone
         let b = bounds
         // Open hand over the strip's empty area (left of the buttons; the web card's controls cover it).
         if content.accessory == nil {

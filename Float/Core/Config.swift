@@ -2,7 +2,7 @@ import AppKit
 import Carbon.HIToolbox
 
 /// Physics, layout and behaviour constants. Colours, type and shape live in Theme.
-enum Settings {
+enum Config {
     // MARK: User settings (Settings window, persisted in UserDefaults, read live)
 
     enum Keys {

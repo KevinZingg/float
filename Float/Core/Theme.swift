@@ -101,7 +101,7 @@ struct Theme {
     // MARK: Current
 
     static var current: Theme {
-        Theme(name: Name(rawValue: UserDefaults.standard.string(forKey: Settings.Keys.theme) ?? "") ?? .ink)
+        Theme(name: Name(rawValue: UserDefaults.standard.string(forKey: Config.Keys.theme) ?? "") ?? .ink)
     }
 
     /// Makes the bundled IBM Plex Mono available to NSFont (OFL, see Resources/Fonts).

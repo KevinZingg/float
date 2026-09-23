@@ -14,7 +14,7 @@ enum LaunchAction: Equatable {
         let isPath = s.hasPrefix("~") || s.hasPrefix("/")
         switch mode {
         case .preview:
-            return .preview(url: s.isEmpty ? Settings.defaultURL : s)
+            return .preview(url: s.isEmpty ? Config.defaultURL : s)
         case .terminal:
             break
         case nil:
@@ -66,7 +66,7 @@ final class LauncherView: PillView, NSTextFieldDelegate {
     private var selected: Int?
 
     init() {
-        super.init(frame: CGRect(x: 0, y: 0, width: Settings.launcherWidth, height: 90))
+        super.init(frame: CGRect(x: 0, y: 0, width: Config.launcherWidth, height: 90))
 
         field.isBordered = false
         field.drawsBackground = false
@@ -155,7 +155,7 @@ final class LauncherView: PillView, NSTextFieldDelegate {
         layoutSubtreeIfNeeded()
         let height = 16 + field.intrinsicContentSize.height + 8 + hintLabel.intrinsicContentSize.height + 14
             + (suggestions.isEmpty ? 0 : 8 + CGFloat(suggestions.count) * 20)
-        setFrameSize(CGSize(width: Settings.launcherWidth, height: height))
+        setFrameSize(CGSize(width: Config.launcherWidth, height: height))
     }
 
     // MARK: - Keys

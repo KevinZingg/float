@@ -2,11 +2,11 @@ import SwiftUI
 
 /// ⌘, : a small native form. Everything persists in UserDefaults and FloatApp applies it live.
 struct SettingsView: View {
-    @AppStorage(Settings.Keys.theme) private var theme = Theme.Name.ink.rawValue
-    @AppStorage(Settings.Keys.terminalFontSize) private var fontSize = 12.0
-    @AppStorage(Settings.Keys.defaultViewport) private var viewport = Viewport.desktop.rawValue
-    @AppStorage(Settings.Keys.springDampingRatio) private var damping = 0.82
-    @AppStorage(Settings.Keys.padding) private var padding = 16.0
+    @AppStorage(Config.Keys.theme) private var theme = Theme.Name.ink.rawValue
+    @AppStorage(Config.Keys.terminalFontSize) private var fontSize = 12.0
+    @AppStorage(Config.Keys.defaultViewport) private var viewport = Viewport.desktop.rawValue
+    @AppStorage(Config.Keys.springDampingRatio) private var damping = 0.82
+    @AppStorage(Config.Keys.padding) private var padding = 16.0
     let launcherHotkey: String
 
     var body: some View {
@@ -16,19 +16,19 @@ struct SettingsView: View {
                     ForEach(Theme.Name.allCases, id: \.rawValue) { Text($0.title).tag($0.rawValue) }
                 }
                 Stepper("Terminal font size  \(Int(fontSize)) pt", value: $fontSize,
-                        in: Double(Settings.terminalFontRange.lowerBound)...Double(Settings.terminalFontRange.upperBound))
+                        in: Double(Config.terminalFontRange.lowerBound)...Double(Config.terminalFontRange.upperBound))
                 Picker("Default viewport", selection: $viewport) {
                     ForEach(Viewport.allCases, id: \.rawValue) { Text($0.rawValue).tag($0.rawValue) }
                 }
             }
             Section {
                 LabeledContent("Spring bounce") {
-                    Slider(value: $damping, in: Double(Settings.dampingRange.lowerBound)...Double(Settings.dampingRange.upperBound)) {
+                    Slider(value: $damping, in: Double(Config.dampingRange.lowerBound)...Double(Config.dampingRange.upperBound)) {
                         EmptyView()
                     } minimumValueLabel: { Text("more") } maximumValueLabel: { Text("none") }
                 }
                 LabeledContent("Card padding  \(Int(padding)) pt") {
-                    Slider(value: $padding, in: Double(Settings.paddingRange.lowerBound)...Double(Settings.paddingRange.upperBound), step: 4)
+                    Slider(value: $padding, in: Double(Config.paddingRange.lowerBound)...Double(Config.paddingRange.upperBound), step: 4)
                 }
             }
             Section {
