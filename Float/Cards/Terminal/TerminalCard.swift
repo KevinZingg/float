@@ -169,7 +169,7 @@ extension TerminalCard: @preconcurrency LocalProcessTerminalViewDelegate {
 }
 
 /// Reports the shell's first output (its prompt), so a queued command goes in after the line editor is up.
-private final class ShellView: LocalProcessTerminalView {
+private final class ShellView: LocalProcessTerminalView, ScrollInterceptor {
     var onFirstOutput: (() -> Void)?
     var onOutput: (() -> Void)?
 
@@ -179,5 +179,40 @@ private final class ShellView: LocalProcessTerminalView {
         guard let first = onFirstOutput else { return }
         onFirstOutput = nil
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { first() }
+    }
+
+    private var wheel = WheelLines(pointsPerLine: Config.terminalScrollPointsPerLine, maxLinesPerEvent: Config.terminalScrollMaxLinesPerEvent)
+
+    /// SwiftTerm 1.11 only scrolls its own scrollback (and its scrollWheel isn't open), so full-screen apps
+    /// (claude, vim, less) never see the wheel. Like iTerm2 and Terminal.app: report it as buttons 4/5 when the
+    /// app tracks the mouse, otherwise send arrow keys on the alternate screen; the main screen keeps scrollback.
+    func interceptScroll(_ event: NSEvent) -> Bool {
+        let t = terminal!
+        let reportsMouse = allowMouseReporting && [.vt200, .buttonEventTracking, .anyEvent].contains(t.mouseMode)
+        guard reportsMouse || t.isCurrentBufferAlternate else { return false }
+
+        if event.phase.contains(.began) { wheel.reset() }
+        let lines = wheel.lines(delta: event.scrollingDeltaY, precise: event.hasPreciseScrollingDeltas)
+        guard lines != 0 else { return true }
+
+        if reportsMouse {
+            let flags = event.modifierFlags
+            let button = t.encodeButton(button: lines > 0 ? 4 : 5, release: false, shift: flags.contains(.shift),
+                                        meta: flags.contains(.option), control: flags.contains(.control))
+            let (col, row) = cell(at: convert(event.locationInWindow, from: nil))
+            for _ in 0..<abs(lines) { t.sendEvent(buttonFlags: button, x: col, y: row) }
+        } else {
+            send(data: ArraySlice(WheelLines.arrowKeys(lines: lines, applicationCursor: t.applicationCursor)))
+        }
+        return true
+    }
+
+    /// Grid cell under a point; SwiftTerm's own hit test is internal, and wheel reports only need to be close.
+    private func cell(at point: CGPoint) -> (col: Int, row: Int) {
+        let t = terminal!
+        let width = bounds.width - NSScroller.scrollerWidth(for: .regular, scrollerStyle: .legacy)
+        let col = Int(point.x / max(1, width / CGFloat(t.cols)))
+        let row = Int((bounds.height - point.y) / max(1, bounds.height / CGFloat(t.rows)))
+        return (min(max(col, 0), t.cols - 1), min(max(row, 0), t.rows - 1))
     }
 }
