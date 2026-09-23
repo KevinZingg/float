@@ -7,8 +7,14 @@ enum URLInput {
         guard !s.isEmpty, !s.contains(" ") else { return nil }
         if let port = port(s) { return URL(string: "http://localhost:\(port)") }
         if s.contains("://") { return URL(string: s) }
-        let local = s.hasPrefix("localhost") || s.hasPrefix("127.0.0.1") || s.hasPrefix("0.0.0.0")
+        let local = localHosts.contains { s.hasPrefix($0) }
         return URL(string: (local ? "http://" : "https://") + s)
+    }
+
+    private static let localHosts = ["localhost", "127.0.0.1", "0.0.0.0"]
+
+    static func isLocal(_ url: URL) -> Bool {
+        localHosts.contains(url.host ?? "")
     }
 
     /// Whether the launcher should treat the input as a preview rather than a shell command.
