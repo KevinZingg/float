@@ -21,7 +21,6 @@ final class CardView: NSView {
     private let titleLabel = NSTextField(labelWithString: "")
     private let closeButton = NSButton()
     private let presetButton = NSButton()
-    private let chromeMaterial = NSVisualEffectView()
     /// Hairline under the chrome strip.
     private let chromeRule = NSView()
     private let grabber = GrabberView()
@@ -59,11 +58,6 @@ final class CardView: NSView {
         addSubview(container)
 
         chrome.wantsLayer = true
-        chromeMaterial.material = .titlebar
-        chromeMaterial.blendingMode = .withinWindow
-        chromeMaterial.state = .active
-        chromeMaterial.autoresizingMask = [.width, .height]
-        chrome.addSubview(chromeMaterial)
         chromeRule.wantsLayer = true
         chrome.addSubview(chromeRule)
         container.addSubview(chrome)
@@ -105,10 +99,8 @@ final class CardView: NSView {
         container.layer?.cornerRadius = t.cardRadius
         container.layer?.backgroundColor = t.cardBackground.cgColor
         container.layer?.borderWidth = t.borderWidth
-        chrome.layer?.backgroundColor = t.chromeBackground?.cgColor ?? NSColor.clear.cgColor
-        chromeMaterial.isHidden = !t.usesVibrancy
-        chromeMaterial.appearance = NSAppearance(named: .darkAqua)
-        chromeRule.layer?.backgroundColor = t.hairline.cgColor
+        chrome.layer?.backgroundColor = t.chromeBackground.cgColor
+        chromeRule.layer?.backgroundColor = t.chromeRule.cgColor
         for b in [closeButton, presetButton] {
             b.contentTintColor = t.controlTint
             b.image?.isTemplate = true
@@ -170,7 +162,6 @@ final class CardView: NSView {
         let t = Theme.current
         let pill = t.grabberSize
         grabber.frame = CGRect(x: (bounds.width - pill.width) / 2, y: t.grabberTopInset, width: pill.width, height: pill.height)
-        chromeMaterial.frame = chrome.bounds
         chromeRule.frame = CGRect(x: 0, y: h - t.borderWidth, width: bounds.width, height: t.borderWidth)
 
         if let accessory = content.accessory {

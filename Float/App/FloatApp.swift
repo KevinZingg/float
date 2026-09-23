@@ -19,7 +19,6 @@ final class FloatApp: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         Theme.registerFonts()
         Config.registerDefaults()
-        applyLaunchArguments()
         let screen = NSScreen.main ?? NSScreen.screens[0]
         window = CanvasWindow(screen: screen)
         let canvas = CanvasView(frame: window.contentLayoutRect)
@@ -47,25 +46,12 @@ final class FloatApp: NSObject, NSApplicationDelegate {
         if CommandLine.arguments.contains("--demo") { runDemo() } else { newTerminal() }
     }
 
-    /// `--theme a|b` switches (and remembers) the theme, for comparing the two.
-    private func applyLaunchArguments() {
-        let args = CommandLine.arguments
-        if let i = args.firstIndex(of: "--theme"), i + 1 < args.count, let name = Theme.Name(rawValue: args[i + 1]) {
-            UserDefaults.standard.set(name.rawValue, forKey: Config.Keys.theme)
-        }
-        // Hidden: picks one of the empty-state treatments (see EmptyStateView.Variant).
-        if let i = args.firstIndex(of: "--empty-variant"), i + 1 < args.count, let n = Int(args[i + 1]),
-           EmptyStateView.Variant(rawValue: n) != nil {
-            UserDefaults.standard.set(n, forKey: Config.Keys.emptyVariant)
-        }
-    }
-
     // MARK: - Live settings
 
     private var settingsSnapshot = ""
     private static var currentSettings: String {
         let d = UserDefaults.standard
-        return [Config.Keys.theme, Config.Keys.terminalFontSize, Config.Keys.springDampingRatio, Config.Keys.padding]
+        return [Config.Keys.terminalFontSize, Config.Keys.springDampingRatio, Config.Keys.padding]
             .map { "\(d.object(forKey: $0) ?? "")" }.joined(separator: "|")
     }
 
@@ -87,11 +73,15 @@ final class FloatApp: NSObject, NSApplicationDelegate {
         let repo = NSHomeDirectory() + "/Documents/float"
         newTerminal(directory: repo, command: "ls -G")
         newTerminal(directory: repo, command: "git --no-pager log --oneline --graph --decorate --color -14")
-        newTerminal(directory: repo, command: "git status -sb && git branch --color")
+        newTerminal(directory: repo, command: "vim README.md")
         newPreview(url: "https://mogen.ch")
         newPreview(url: "https://example.com")
         // Give Stage Manager a moment to place the window so the layout uses the final bounds.
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak self] in self?.arrangeAll() }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak self] in
+            guard let self else { return }
+            self.arrangeAll()
+            if let first = self.manager.cards.first { self.manager.focus(first) }
+        }
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {

@@ -6,17 +6,14 @@ enum Config {
     // MARK: User settings (Settings window, persisted in UserDefaults, read live)
 
     enum Keys {
-        static let theme = "theme"
         static let terminalFontSize = "terminalFontSize"
         static let defaultViewport = "defaultViewport"
         static let springDampingRatio = "springDampingRatio"
         static let padding = "cardPadding"
-        static let emptyVariant = "emptyVariant"
     }
 
     static func registerDefaults() {
         UserDefaults.standard.register(defaults: [
-            Keys.theme: Theme.Name.ink.rawValue,
             Keys.terminalFontSize: 12.0,
             Keys.defaultViewport: Viewport.desktop.rawValue,
             Keys.springDampingRatio: 0.82,
@@ -72,13 +69,9 @@ enum Config {
     static let toastHeight: CGFloat = 28
     static let toastDuration: TimeInterval = 4
     static let promptMaxWidth: CGFloat = 460
-    // Empty state (variants in EmptyStateView; wallpaper treatments in WallpaperArt)
-    static let pixelBlock: CGFloat = 32
-    static let asciiCell: CGFloat = 10
-    static let asciiAlpha: CGFloat = 0.28
-    static let ditherDot: CGFloat = 3.5
-    /// How far the dither's "on" dots go from Night toward sage.
-    static let ditherInk: CGFloat = 0.55
+    // Empty state: black Helvetia with a white outline
+    static let emptyGlyph: CGFloat = 7
+    static let emptyOutline: CGFloat = 2
     static let cardEntranceScale: CGFloat = 0.92
     static let cardExitDuration: TimeInterval = 0.2
 

@@ -27,7 +27,7 @@ final class CardManager {
     /// Re-reads Theme and user settings after they change.
     func applyTheme() {
         for card in cards { card.applyTheme() }
-        emptyState.subviews.forEach { $0.needsDisplay = true }
+        emptyState.needsDisplay = true
         clampAll()
     }
 

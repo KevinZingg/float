@@ -45,6 +45,7 @@ final class TerminalCard: CardContent {
         if let command {
             terminal.onFirstOutput = { [weak self] in self?.send(command + "\n") }
         }
+        terminal.onOutput = { [weak self] in self?.scheduleTitleRefresh() }
     }
 
     private static func environment() -> [String] {
@@ -76,11 +77,37 @@ final class TerminalCard: CardContent {
     }
 
     /// True when something other than the shell owns the terminal (vim, claude, a dev server...).
-    private var hasForegroundJob: Bool {
-        let process = terminal.process!
-        guard process.running, process.childfd >= 0 else { return false }
+    private var hasForegroundJob: Bool { foregroundJob != nil }
+
+    /// Name of the process group the shell has handed the terminal to (claude, vim…), nil at the prompt.
+    private var foregroundJob: String? {
+        guard let process = terminal.process, process.running, process.childfd >= 0 else { return nil }
         let group = tcgetpgrp(process.childfd)
-        return group > 0 && group != process.shellPid
+        guard group > 0, group != process.shellPid else { return nil }
+        var name = [UInt8](repeating: 0, count: 256)
+        let length = Int(proc_name(group, &name, UInt32(name.count)))
+        guard length > 0 else { return "job" }
+        return String(decoding: name.prefix(length), as: UTF8.self)
+    }
+
+    /// "float · claude": the working directory's name, plus the foreground job when there is one.
+    private func refreshTitle() {
+        titleRefreshPending = false
+        guard let dir = currentDirectory else { return }
+        var newTitle = (dir as NSString).lastPathComponent
+        if let job = foregroundJob { newTitle += " · " + job }
+        guard newTitle != title else { return }
+        title = newTitle
+        onTitleChange?(newTitle)
+    }
+
+    private var titleRefreshPending = false
+
+    /// Output is the cheap signal that the directory or foreground job may have changed; coalesce it.
+    private func scheduleTitleRefresh() {
+        guard !titleRefreshPending else { return }
+        titleRefreshPending = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in self?.refreshTitle() }
     }
 
     func confirmClose() -> Bool {
@@ -126,10 +153,9 @@ final class TerminalCard: CardContent {
 extension TerminalCard: @preconcurrency LocalProcessTerminalViewDelegate {
     func sizeChanged(source: LocalProcessTerminalView, newCols: Int, newRows: Int) {}
 
+    /// OSC titles vary by program; the chrome shows directory and job instead, so just refresh that.
     func setTerminalTitle(source: LocalProcessTerminalView, title: String) {
-        guard !title.isEmpty else { return }
-        self.title = title
-        onTitleChange?(title)
+        scheduleTitleRefresh()
     }
 
     func hostCurrentDirectoryUpdate(source: TerminalView, directory: String?) {
@@ -145,9 +171,11 @@ extension TerminalCard: @preconcurrency LocalProcessTerminalViewDelegate {
 /// Reports the shell's first output (its prompt), so a queued command goes in after the line editor is up.
 private final class ShellView: LocalProcessTerminalView {
     var onFirstOutput: (() -> Void)?
+    var onOutput: (() -> Void)?
 
     override func dataReceived(slice: ArraySlice<UInt8>) {
         super.dataReceived(slice: slice)
+        onOutput?()
         guard let first = onFirstOutput else { return }
         onFirstOutput = nil
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { first() }

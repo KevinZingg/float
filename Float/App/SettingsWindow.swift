@@ -2,7 +2,6 @@ import SwiftUI
 
 /// ⌘, : a small native form. Everything persists in UserDefaults and FloatApp applies it live.
 struct SettingsView: View {
-    @AppStorage(Config.Keys.theme) private var theme = Theme.Name.ink.rawValue
     @AppStorage(Config.Keys.terminalFontSize) private var fontSize = 12.0
     @AppStorage(Config.Keys.defaultViewport) private var viewport = Viewport.desktop.rawValue
     @AppStorage(Config.Keys.springDampingRatio) private var damping = 0.82
@@ -12,9 +11,6 @@ struct SettingsView: View {
     var body: some View {
         Form {
             Section {
-                Picker("Theme", selection: $theme) {
-                    ForEach(Theme.Name.allCases, id: \.rawValue) { Text($0.title).tag($0.rawValue) }
-                }
                 Stepper("Terminal font size  \(Int(fontSize)) pt", value: $fontSize,
                         in: Double(Config.terminalFontRange.lowerBound)...Double(Config.terminalFontRange.upperBound))
                 Picker("Default viewport", selection: $viewport) {
