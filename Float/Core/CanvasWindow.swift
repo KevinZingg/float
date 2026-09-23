@@ -19,7 +19,9 @@ final class CanvasWindow: NSWindow {
         for button: NSWindow.ButtonType in [.closeButton, .miniaturizeButton, .zoomButton] {
             standardWindowButton(button)?.isHidden = true
         }
-        backgroundColor = .clear
+        // Nearly invisible but non-zero, so clicks on empty canvas stay ours instead of passing through
+        // to the wallpaper (where Stage Manager's "click wallpaper to reveal desktop" would hide every card).
+        backgroundColor = NSColor(white: 0, alpha: Settings.canvasBackgroundAlpha)
         isOpaque = false
         hasShadow = false
         isMovable = false

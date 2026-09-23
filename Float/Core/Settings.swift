@@ -5,6 +5,7 @@ import Carbon.HIToolbox
 enum Settings {
     static let padding: CGFloat = 16
     static let gap: CGFloat = 16
+    static let canvasBackgroundAlpha: CGFloat = 0.01
     static let cornerRadius: CGFloat = 12
     static let cascadeOffset: CGFloat = 28
 
