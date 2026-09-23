@@ -84,6 +84,23 @@ final class CardView: NSView {
         container.addSubview(content.view)
 
         content.onTitleChange = { [weak self] title in self?.titleLabel.stringValue = title }
+        addTrackingArea(NSTrackingArea(
+            rect: .zero, options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect], owner: self))
+        setHovered(false, animated: false)
+    }
+
+    // MARK: - Hover
+
+    override func mouseEntered(with event: NSEvent) { setHovered(true) }
+    override func mouseExited(with event: NSEvent) { setHovered(false) }
+
+    /// Chrome buttons stay quiet until the pointer is over the card.
+    private func setHovered(_ hovered: Bool, animated: Bool = true) {
+        let alpha: CGFloat = hovered ? 1 : Settings.idleChromeAlpha
+        NSAnimationContext.runAnimationGroup { ctx in
+            ctx.duration = animated ? 0.15 : 0
+            for button in [closeButton, presetButton] { button.animator().alphaValue = alpha }
+        }
     }
 
     required init?(coder: NSCoder) { fatalError() }

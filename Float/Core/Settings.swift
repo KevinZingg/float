@@ -9,6 +9,7 @@ enum Settings {
     static let cascadeOffset: CGFloat = 28
 
     static let chromeHeight: CGFloat = 28
+    static let idleChromeAlpha: CGFloat = 0.3
     static let resizeZone: CGFloat = 6
     static let minCardSize = NSSize(width: 220, height: 140)
 
