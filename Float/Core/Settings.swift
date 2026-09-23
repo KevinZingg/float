@@ -52,6 +52,7 @@ enum Settings {
     static let terminalFontRange: ClosedRange<CGFloat> = 8...32
 
     static let defaultURL = "localhost:3000"
+    static let localRetryInterval: TimeInterval = 2
 
     // Global hotkeys (⌥⌘)
     private static let optCmd = UInt32(optionKey | cmdKey)

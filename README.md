@@ -29,3 +29,6 @@ open build/Build/Products/Debug/Float.app        # add --args --demo for a sampl
 ```
 
 Tunables (padding, spring bounce, default sizes, hotkeys) live in `Float/Core/Settings.swift`.
+
+## License
+MIT, see [LICENSE](LICENSE).
