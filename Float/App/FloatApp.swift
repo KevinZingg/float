@@ -58,7 +58,6 @@ final class FloatApp: NSObject, NSApplicationDelegate {
 
     @objc private func windowGeometryChanged() { manager.clampAll() }
 
-
     // MARK: - Actions
 
     private func bringToFront() {
@@ -85,10 +84,19 @@ final class FloatApp: NSObject, NSApplicationDelegate {
     func newPreview(url: String, spawnFrom: CGRect? = nil) {
         bringToFront()
         let web = WebCard(url: url)
-        let card = manager.add(web, size: Settings.previewSize, spawnFrom: spawnFrom)
+        wire(web, to: manager.add(web, size: Settings.previewSize, spawnFrom: spawnFrom))
+    }
+
+    /// Hooks a web card up to the manager, including the cards it opens (popups of popups too).
+    private func wire(_ web: WebCard, to card: CardView) {
         web.onSuggestAspect = { [weak self, weak card] aspect in
             guard let self, let card else { return }
             self.manager.setAspect(aspect, for: card)
+        }
+        web.onOpenCard = { [weak self, weak card] newWeb, sizeHint in
+            guard let self, let card else { return }
+            self.bringToFront()
+            self.wire(newWeb, to: self.manager.add(newWeb, size: sizeHint ?? card.frame.size, beside: card))
         }
     }
 

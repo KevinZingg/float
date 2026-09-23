@@ -46,6 +46,31 @@ enum Snapping {
         return spot ?? clamp(CGRect(origin: CGPoint(x: bounds.midX - size.width / 2, y: bounds.midY - size.height / 2), size: size), in: bounds)
     }
 
+    /// Spot for a card opened from `source`: to its right if it fits, else left, else below, preferring
+    /// spots no other card covers; if all are taken, cascade from the first one. Clamped to the canvas.
+    static func besideSpot(for size: CGSize, next source: CGRect, avoiding occupied: [CGRect], in bounds: CGRect) -> CGRect {
+        let a = area(bounds), g = Settings.gap
+        let candidates = [
+            CGRect(x: source.maxX + g, y: source.minY, width: size.width, height: size.height),
+            CGRect(x: source.minX - g - size.width, y: source.minY, width: size.width, height: size.height),
+            CGRect(x: source.minX, y: source.maxY + g, width: size.width, height: size.height),
+        ].filter { a.contains($0) }
+        func free(_ r: CGRect) -> Bool { !occupied.contains { $0.intersects(r) } }
+        if let spot = candidates.first(where: free) { return spot }
+        var spot = clamp(candidates.first ?? CGRect(origin: CGPoint(x: source.maxX + g, y: source.minY), size: size), in: bounds)
+        for _ in 0..<8 where !free(spot) {
+            spot = clamp(spot.offsetBy(dx: Settings.cascadeOffset, dy: Settings.cascadeOffset), in: bounds)
+        }
+        return spot
+    }
+
+    /// Midpoint of the side of `source` that faces `target`, where a spawned card grows from.
+    static func edgePoint(of source: CGRect, toward target: CGRect) -> CGPoint {
+        if target.minX >= source.maxX { return CGPoint(x: source.maxX, y: source.midY) }
+        if target.maxX <= source.minX { return CGPoint(x: source.minX, y: source.midY) }
+        return CGPoint(x: source.midX, y: target.minY >= source.midY ? source.maxY : source.minY)
+    }
+
     /// While dragging past the edge, the overshoot is damped to sign(d)·|d|^exponent.
     static func rubberBand(_ rect: CGRect, in bounds: CGRect, exponent: CGFloat = Settings.rubberBandExponent) -> CGRect {
         let clamped = clamp(rect, in: bounds)

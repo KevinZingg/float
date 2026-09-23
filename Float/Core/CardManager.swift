@@ -27,6 +27,22 @@ final class CardManager {
             start.origin = CGPoint(x: spawnFrom.midX - size.width / 2, y: spawnFrom.midY - size.height / 2)
         }
         let target = spawnFrom.map { _ in Snapping.freeSpot(for: size, avoiding: cards.map(\.frame), in: bounds) }
+        return insert(content, frame: start, aspect: aspect, target: target)
+    }
+
+    /// Opens a card next to `source` (right, else left, else below), growing out of its edge.
+    @discardableResult
+    func add(_ content: CardContent, size: NSSize, beside source: CardView) -> CardView {
+        let others = cards.filter { $0 !== source }.map { $0.mover.target ?? $0.frame }
+        let target = Snapping.besideSpot(for: size, next: source.frame, avoiding: others, in: canvas.bounds)
+        let edge = Snapping.edgePoint(of: source.frame, toward: target)
+        let start = CGRect(x: edge.x - size.width / 2, y: edge.y - size.height / 2, width: size.width, height: size.height)
+        let card = insert(content, frame: start, aspect: nil, target: target)
+        card.animateEntrance()
+        return card
+    }
+
+    private func insert(_ content: CardContent, frame start: CGRect, aspect: CGFloat?, target: CGRect?) -> CardView {
         let card = CardView(content: content, frame: start)
         card.aspect = aspect
         card.onFocus = { [weak self] in self?.focus($0) }
@@ -87,12 +103,14 @@ final class CardManager {
     }
 
     private func remove(_ card: CardView) {
-        card.content.close()
-        card.removeFromSuperview()
+        guard cards.contains(where: { $0 === card }) else { return }
         cards.removeAll { $0 === card }
+        card.content.close()
+        card.mover.stop()
+        card.animateExit { card.removeFromSuperview() }
         if focused === card {
             focused = nil
-            if let top = canvas.subviews.last as? CardView { focus(top) }
+            if let top = canvas.subviews.last(where: { v in cards.contains { $0 === v } }) as? CardView { focus(top) }
         }
     }
 
