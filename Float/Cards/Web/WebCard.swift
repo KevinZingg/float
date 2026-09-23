@@ -18,7 +18,7 @@ final class WebCard: NSObject, CardContent {
     private var retryTimer: Timer?
     private var observations: [NSKeyValueObservation] = []
     private(set) var title = "Preview"
-    private(set) var viewport = Viewport.desktop
+    private(set) var viewport = Settings.defaultViewport
     var onTitleChange: ((String) -> Void)?
     var onRequestClose: (() -> Void)?
     /// Asks the card to take a content aspect ratio (nil = free).
@@ -82,8 +82,8 @@ final class WebCard: NSObject, CardContent {
     // MARK: - Error state
 
     private func buildErrorLabel() {
-        errorLabel.font = .systemFont(ofSize: 13)
-        errorLabel.textColor = .secondaryLabelColor
+        errorLabel.font = Theme.mono(11.5)
+        errorLabel.textColor = Theme.current.secondaryText
         errorLabel.alignment = .center
         errorLabel.isHidden = true
         errorLabel.translatesAutoresizingMaskIntoConstraints = false
@@ -158,15 +158,15 @@ final class WebCard: NSObject, CardContent {
     private func downloadEvent(_ event: DownloadManager.Event) {
         switch event {
         case .progress(let name, let fraction):
-            toast.show("Downloading \(name) · \(Int(fraction * 100))%", sticky: true)
+            toast.show("Downloading \(name)  \(Int(fraction * 100))%", sticky: true)
         case .finished(let url):
             NSLog("Float: downloaded %@", url.path)
-            toast.show("Downloaded \(url.lastPathComponent) · Show in Finder") {
+            toast.show("Downloaded \(url.lastPathComponent)", action: "Show in Finder") {
                 NSWorkspace.shared.activateFileViewerSelecting([url])
             }
         case .failed(let name, let error):
             NSLog("Float: download of %@ failed: %@", name, "\(error)")
-            toast.show("Couldn’t download \(name) · \(error.localizedDescription)")
+            toast.show("Couldn’t download \(name). \(error.localizedDescription)")
         }
     }
 
@@ -176,20 +176,19 @@ final class WebCard: NSObject, CardContent {
         let back = button("chevron.left", "Back", #selector(goBack))
         let forward = button("chevron.right", "Forward", #selector(goForward))
         let reloadButton = button("arrow.clockwise", "Reload", #selector(reloadClicked))
+        navButtons = [back, forward, reloadButton]
 
-        urlField.font = .systemFont(ofSize: 11)
-        urlField.bezelStyle = .roundedBezel
         urlField.controlSize = .small
-        urlField.placeholderString = "localhost:3000"
         urlField.lineBreakMode = .byTruncatingTail
+        urlField.focusRingType = .none
         urlField.target = self
         urlField.action = #selector(urlEntered)
         urlField.setContentHuggingPriority(.defaultLow, for: .horizontal)
         urlField.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
 
         viewportMenu.addItems(withTitles: Viewport.allCases.map(\.rawValue))
+        viewportMenu.selectItem(withTitle: viewport.rawValue)
         viewportMenu.controlSize = .small
-        viewportMenu.font = .systemFont(ofSize: 11)
         viewportMenu.isBordered = false
         viewportMenu.target = self
         viewportMenu.action = #selector(viewportPicked)
@@ -199,12 +198,41 @@ final class WebCard: NSObject, CardContent {
         controls.alignment = .centerY
         controls.edgeInsets = NSEdgeInsets(top: 0, left: 0, bottom: 0, right: 0)
         for v in [back, forward, reloadButton, urlField, viewportMenu] { controls.addArrangedSubview(v) }
+        controls.setCustomSpacing(8, after: reloadButton)
+        controls.setCustomSpacing(6, after: urlField)
+        applyTheme()
+    }
+
+    private var navButtons: [NSButton] = []
+
+    func applyTheme() {
+        let t = Theme.current
+        for b in navButtons { b.contentTintColor = t.controlTint }
+        urlField.font = Theme.mono(11)
+        urlField.textColor = t.text
+        if t.name == .ink {
+            urlField.isBezeled = false
+            urlField.isBordered = false
+            urlField.drawsBackground = true
+            urlField.backgroundColor = t.fieldBackground
+        } else {
+            urlField.isBezeled = true
+            urlField.bezelStyle = .roundedBezel
+            urlField.drawsBackground = false
+        }
+        urlField.placeholderAttributedString = NSAttributedString(string: "localhost:3000", attributes: [
+            .font: Theme.mono(11), .foregroundColor: Theme.faint,
+        ])
+        viewportMenu.font = Theme.mono(Theme.labelSize, weight: .medium)
+        for item in viewportMenu.itemArray { item.attributedTitle = Theme.label(item.title, color: t.chromeText) }
+        errorLabel.textColor = t.secondaryText
+        toast.applyTheme()
+        permissions.prompt.applyTheme()
     }
 
     private func button(_ symbol: String, _ label: String, _ action: Selector) -> NSButton {
         let b = NSButton(image: NSImage(systemSymbolName: symbol, accessibilityDescription: label)!, target: self, action: action)
         b.isBordered = false
-        b.contentTintColor = .secondaryLabelColor
         b.widthAnchor.constraint(equalToConstant: 20).isActive = true
         return b
     }

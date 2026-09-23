@@ -94,7 +94,7 @@ extension Snapping {
     /// `previewAspects` holds each preview's locked content aspect (nil = default preview shape).
     static func arrange(
         terminals: Int, previewAspects: [CGFloat?], in bounds: CGRect,
-        gap: CGFloat = Settings.gap, chrome: CGFloat = Settings.chromeHeight
+        gap: CGFloat = Settings.gap, chrome: CGFloat = Theme.chromeHeight
     ) -> (terminals: [CGRect], previews: [CGRect]) {
         let a = area(bounds)
         let previewColumn: CGFloat

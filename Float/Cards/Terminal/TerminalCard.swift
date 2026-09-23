@@ -5,9 +5,13 @@ import SwiftTerm
 @MainActor
 final class TerminalCard: CardContent {
     let kind = CardKind.terminal
-    private let terminal = LocalProcessTerminalView(frame: CGRect(x: 0, y: 0, width: 400, height: 300))
+    private let terminal = ShellView(frame: CGRect(x: 0, y: 0, width: 400, height: 300))
     private(set) var title: String
-    private var fontSize = Settings.terminalFontSize
+    /// ⌘+ / ⌘- steps on top of the size set in Settings.
+    private var zoomSteps: CGFloat = 0
+    private var fontSize: CGFloat {
+        min(max(Settings.terminalFontSize + zoomSteps, Settings.terminalFontRange.lowerBound), Settings.terminalFontRange.upperBound)
+    }
     var onTitleChange: ((String) -> Void)?
     var onRequestClose: (() -> Void)?
 
@@ -22,18 +26,14 @@ final class TerminalCard: CardContent {
 
     init(directory: String = TerminalCard.lastDirectory, command: String? = nil) {
         title = (directory as NSString).lastPathComponent
-        terminal.font = .monospacedSystemFont(ofSize: fontSize, weight: .regular)
-        terminal.nativeBackgroundColor = Settings.cardBackground
-        terminal.nativeForegroundColor = NSColor(white: 0.9, alpha: 1)
-        terminal.caretColor = .controlAccentColor
         terminal.optionAsMetaKey = true
         terminal.processDelegate = self
         view.wantsLayer = true
-        view.layer?.backgroundColor = Settings.cardBackground.cgColor
         view.frame = CGRect(x: 0, y: 0, width: 400, height: 300)
         terminal.frame = view.bounds.insetBy(dx: Settings.terminalInset, dy: Settings.terminalInset)
         terminal.autoresizingMask = [.width, .height]
         view.addSubview(terminal)
+        applyTheme()
 
         let shell = ProcessInfo.processInfo.environment["SHELL"] ?? "/bin/zsh"
         terminal.startProcess(
@@ -41,7 +41,10 @@ final class TerminalCard: CardContent {
             execName: "-" + (shell as NSString).lastPathComponent, currentDirectory: directory)
         TerminalCard.lastDirectory = directory
         RecentDirectories.add(directory)
-        if let command { send(command + "\n") }
+        // Typed ahead before zsh's line editor starts, the command would be echoed twice; wait for the prompt.
+        if let command {
+            terminal.onFirstOutput = { [weak self] in self?.send(command + "\n") }
+        }
     }
 
     private static func environment() -> [String] {
@@ -97,8 +100,26 @@ final class TerminalCard: CardContent {
     }
 
     func zoom(by step: Int) {
-        fontSize = min(max(fontSize + CGFloat(step), Settings.terminalFontRange.lowerBound), Settings.terminalFontRange.upperBound)
-        terminal.font = .monospacedSystemFont(ofSize: fontSize, weight: .regular)
+        zoomSteps += CGFloat(step)
+        terminal.font = Theme.mono(fontSize)
+    }
+
+    /// Colours, ANSI palette and font from the theme; also re-reads the font size from Settings.
+    func applyTheme() {
+        let t = Theme.current
+        terminal.font = Theme.mono(fontSize)
+        terminal.nativeBackgroundColor = t.terminalBackground
+        terminal.nativeForegroundColor = t.terminalForeground
+        terminal.caretColor = t.terminalCaret
+        terminal.selectedTextBackgroundColor = t.accent.withAlphaComponent(0.3)
+        terminal.installColors(t.ansi.map { c in
+            let rgb = c.usingColorSpace(.sRGB) ?? c
+            return SwiftTerm.Color(red: UInt16(rgb.redComponent * 65535), green: UInt16(rgb.greenComponent * 65535), blue: UInt16(rgb.blueComponent * 65535))
+        })
+        view.layer?.backgroundColor = t.terminalBackground.cgColor
+        // SwiftTerm hard-codes a legacy scroller whose track reads as a grey bar on Night; trackpad scrolling
+        // still works without it, and its reserved width becomes right-hand padding.
+        for case let scroller as NSScroller in terminal.subviews { scroller.isHidden = true }
     }
 }
 
@@ -118,5 +139,17 @@ extension TerminalCard: @preconcurrency LocalProcessTerminalViewDelegate {
 
     func processTerminated(source: TerminalView, exitCode: Int32?) {
         DispatchQueue.main.async { [weak self] in self?.onRequestClose?() }
+    }
+}
+
+/// Reports the shell's first output (its prompt), so a queued command goes in after the line editor is up.
+private final class ShellView: LocalProcessTerminalView {
+    var onFirstOutput: (() -> Void)?
+
+    override func dataReceived(slice: ArraySlice<UInt8>) {
+        super.dataReceived(slice: slice)
+        guard let first = onFirstOutput else { return }
+        onFirstOutput = nil
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { first() }
     }
 }

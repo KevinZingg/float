@@ -17,6 +17,9 @@ final class FloatApp: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        Theme.registerFonts()
+        Settings.registerDefaults()
+        applyLaunchArguments()
         let screen = NSScreen.main ?? NSScreen.screens[0]
         window = CanvasWindow(screen: screen)
         let canvas = CanvasView(frame: window.contentLayoutRect)
@@ -35,22 +38,61 @@ final class FloatApp: NSObject, NSApplicationDelegate {
                 self, selector: #selector(windowGeometryChanged), name: name, object: window)
         }
 
+        settingsSnapshot = Self.currentSettings
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(defaultsChanged), name: UserDefaults.didChangeNotification, object: nil)
+
         window.makeKeyAndOrderFront(nil)
         NSApp.activate()
         if CommandLine.arguments.contains("--demo") { runDemo() } else { newTerminal() }
     }
 
+    /// `--theme a|b` switches (and remembers) the theme, for comparing the two.
+    private func applyLaunchArguments() {
+        let args = CommandLine.arguments
+        if let i = args.firstIndex(of: "--theme"), i + 1 < args.count, let name = Theme.Name(rawValue: args[i + 1]) {
+            UserDefaults.standard.set(name.rawValue, forKey: Settings.Keys.theme)
+        }
+    }
+
+    // MARK: - Live settings
+
+    private var settingsSnapshot = ""
+    private static var currentSettings: String {
+        let d = UserDefaults.standard
+        return [Settings.Keys.theme, Settings.Keys.terminalFontSize, Settings.Keys.springDampingRatio, Settings.Keys.padding]
+            .map { "\(d.object(forKey: $0) ?? "")" }.joined(separator: "|")
+    }
+
+    /// UserDefaults also changes for unrelated keys (last directory…), so only re-apply when a setting moved.
+    @objc private func defaultsChanged() {
+        let now = Self.currentSettings
+        guard now != settingsSnapshot else { return }
+        settingsSnapshot = now
+        manager.applyTheme()
+        launcher.applyTheme()
+    }
+
+    private var launcherHotkeyTitle = "⌥ Space"
+
+    @objc func showSettings() { SettingsWindow.show(launcherHotkey: launcherHotkeyTitle) }
+
     /// Dev flag: a typical layout to eyeball rendering and spacing.
     private func runDemo() {
-        for _ in 0..<3 { newTerminal() }
+        let repo = NSHomeDirectory() + "/Documents/float"
+        newTerminal(directory: repo, command: "ls -G")
+        newTerminal(directory: repo, command: "git --no-pager log --oneline --graph --decorate --color -14")
+        newTerminal(directory: repo, command: "git status -sb && git branch --color")
+        newPreview(url: "https://mogen.ch")
         newPreview(url: "https://example.com")
-        newPreview()
         // Give Stage Manager a moment to place the window so the layout uses the final bounds.
         DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak self] in self?.arrangeAll() }
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         window.makeKeyAndOrderFront(nil)
+        // The canvas covers the screen, so keep an open Settings window above it.
+        SettingsWindow.orderFrontIfOpen()
         return true
     }
 
@@ -143,6 +185,7 @@ final class FloatApp: NSObject, NSApplicationDelegate {
         if !Hotkeys.register(Settings.hotkeyLauncher, action: showLauncher) {
             NSLog("Float: ⌥Space is taken by another app, using ⌥⌘Space for the launcher")
             Hotkeys.register(Settings.hotkeyLauncherFallback, action: showLauncher)
+            launcherHotkeyTitle = "⌥⌘ Space"
         }
     }
 
@@ -152,6 +195,7 @@ final class FloatApp: NSObject, NSApplicationDelegate {
         let main = NSMenu()
 
         let appMenu = NSMenu()
+        appMenu.addItem(item("Settings…", #selector(showSettings), ","))
         appMenu.addItem(item("Reset Site Permissions", #selector(resetSitePermissions), ""))
         appMenu.addItem(.separator())
         appMenu.addItem(withTitle: "Hide Float", action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")

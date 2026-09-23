@@ -2,22 +2,15 @@ import AppKit
 
 /// Small pill at the bottom of a card for transient status ("Downloaded x · Show in Finder").
 @MainActor
-final class ToastView: NSVisualEffectView {
+final class ToastView: PillView {
     private let label = NSTextField(labelWithString: "")
     private var onClick: (() -> Void)?
     private var hideTimer: Timer?
 
     init() {
         super.init(frame: .zero)
-        material = .hudWindow
-        blendingMode = .withinWindow
-        state = .active
-        wantsLayer = true
-        layer?.masksToBounds = true
         alphaValue = 0
         isHidden = true
-
-        label.font = .systemFont(ofSize: 12, weight: .medium)
         label.lineBreakMode = .byTruncatingMiddle
         label.translatesAutoresizingMaskIntoConstraints = false
         addSubview(label)
@@ -42,11 +35,18 @@ final class ToastView: NSVisualEffectView {
         ])
     }
 
-    /// `sticky` keeps it up (e.g. while a download is running); otherwise it hides after a few seconds.
-    func show(_ text: String, sticky: Bool = false, onClick: (() -> Void)? = nil) {
-        label.stringValue = text
+    /// `action` is the clickable part, shown in the accent after a dot. `sticky` keeps it up (e.g. while
+    /// a download runs); otherwise it hides after a few seconds.
+    func show(_ text: String, action: String? = nil, sticky: Bool = false, onClick: (() -> Void)? = nil) {
+        let t = Theme.current
+        let s = NSMutableAttributedString(string: text, attributes: [.font: Theme.mono(11), .foregroundColor: t.text])
+        if let action {
+            s.append(NSAttributedString(string: "  ·  ", attributes: [.font: Theme.mono(11), .foregroundColor: t.secondaryText]))
+            s.append(Theme.label(action, color: t.accent))
+        }
+        label.attributedStringValue = s
         self.onClick = onClick
-        layer?.cornerRadius = Settings.toastHeight / 2
+        applyTheme()
         isHidden = false
         NSAnimationContext.runAnimationGroup { $0.duration = 0.15; animator().alphaValue = 1 }
         hideTimer?.invalidate()

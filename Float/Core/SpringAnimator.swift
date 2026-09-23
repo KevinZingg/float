@@ -10,7 +10,8 @@ struct Spring {
         damping = 4 * .pi * dampingRatio / response
     }
 
-    static let standard = Spring()
+    /// Reads the user's damping ratio each time, so the Settings slider applies live.
+    static var standard: Spring { Spring() }
     static let rubberBand = Spring(dampingRatio: Settings.rubberBandDampingRatio, response: Settings.rubberBandResponse)
 
     /// One semi-implicit Euler step toward `target`. Returns the new value and velocity.

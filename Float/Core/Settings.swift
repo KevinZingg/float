@@ -1,41 +1,53 @@
 import AppKit
 import Carbon.HIToolbox
 
-/// Single source of truth for layout and appearance constants.
+/// Physics, layout and behaviour constants. Colours, type and shape live in Theme.
 enum Settings {
-    static let padding: CGFloat = 16
+    // MARK: User settings (Settings window, persisted in UserDefaults, read live)
+
+    enum Keys {
+        static let theme = "theme"
+        static let terminalFontSize = "terminalFontSize"
+        static let defaultViewport = "defaultViewport"
+        static let springDampingRatio = "springDampingRatio"
+        static let padding = "cardPadding"
+    }
+
+    static func registerDefaults() {
+        UserDefaults.standard.register(defaults: [
+            Keys.theme: Theme.Name.ink.rawValue,
+            Keys.terminalFontSize: 12.0,
+            Keys.defaultViewport: Viewport.desktop.rawValue,
+            Keys.springDampingRatio: 0.82,
+            Keys.padding: 16.0,
+        ])
+    }
+
+    static var padding: CGFloat { CGFloat(UserDefaults.standard.double(forKey: Keys.padding)) }
+    static var terminalFontSize: CGFloat { CGFloat(UserDefaults.standard.double(forKey: Keys.terminalFontSize)) }
+    static var springDampingRatio: CGFloat { CGFloat(UserDefaults.standard.double(forKey: Keys.springDampingRatio)) }
+    static var defaultViewport: Viewport {
+        Viewport(rawValue: UserDefaults.standard.string(forKey: Keys.defaultViewport) ?? "") ?? .desktop
+    }
+
+    static let paddingRange: ClosedRange<CGFloat> = 8...48
+    static let dampingRange: ClosedRange<CGFloat> = 0.5...1
+
+    // MARK: Layout
+
     static let gap: CGFloat = 16
     static let canvasBackgroundAlpha: CGFloat = 0.01
-    static let cornerRadius: CGFloat = 12
     static let cascadeOffset: CGFloat = 28
-
-    static let chromeHeight: CGFloat = 28
-    static let idleChromeAlpha: CGFloat = 0.3
-    static let grabberSize = CGSize(width: 36, height: 5)
-    static let grabberTopInset: CGFloat = 3
-    static let grabberIdleAlpha: CGFloat = 0.35
-    static let grabberActiveAlpha: CGFloat = 0.7
     static let resizeZone: CGFloat = 6
     static let minCardSize = NSSize(width: 220, height: 140)
 
-    static let cardBackground = NSColor(white: 0.08, alpha: 1)
-    static let chromeBackground = NSColor(white: 0.14, alpha: 1)
-
-    static let shadowRadius: CGFloat = 14
-    static let shadowOpacity: Float = 0.35
-    static let shadowOffset = CGSize(width: 0, height: -4)
-
     // Drag lift
     static let liftScale: CGFloat = 1.02
-    static let liftShadowRadius: CGFloat = 28
-    static let liftShadowOpacity: Float = 0.5
-    static let liftShadowOffset = CGSize(width: 0, height: -12)
 
     // Fling + spring (WWDC18 session 803)
     static let velocityWindow: TimeInterval = 0.08
     static let flingDecelerationRate: CGFloat = 0.998
     static let flingMinSpeed: CGFloat = 150
-    static let springDampingRatio: CGFloat = 0.82
     static let springResponse: CGFloat = 0.4
     static let springRestDistance: CGFloat = 0.5
     static let springRestSpeed: CGFloat = 20
@@ -47,8 +59,7 @@ enum Settings {
     static let terminalSize = NSSize(width: 560, height: 360)
     static let previewSize = NSSize(width: 480, height: 300)
 
-    static let terminalFontSize: CGFloat = 12
-    static let terminalInset: CGFloat = 6
+    static let terminalInset: CGFloat = 10
     static let terminalFontRange: ClosedRange<CGFloat> = 8...32
 
     static let defaultURL = "localhost:3000"
@@ -59,8 +70,10 @@ enum Settings {
     static let popupHeightRange: ClosedRange<CGFloat> = 250...800
     static let toastHeight: CGFloat = 28
     static let toastDuration: TimeInterval = 4
-    static let promptCornerRadius: CGFloat = 14
     static let promptMaxWidth: CGFloat = 460
+    static let emptyStateMaxGlyph: CGFloat = 9
+    static let emptyStateAlpha: CGFloat = 0.07
+    static let emptyStateLabelAlpha: CGFloat = 0.4
     static let cardEntranceScale: CGFloat = 0.92
     static let cardExitDuration: TimeInterval = 0.2
 
@@ -76,5 +89,4 @@ enum Settings {
     static let hotkeyLauncher = Hotkey(keyCode: UInt32(kVK_Space), modifiers: UInt32(optionKey))
     static let hotkeyLauncherFallback = Hotkey(keyCode: UInt32(kVK_Space), modifiers: optCmd)
     static let launcherWidth: CGFloat = 520
-    static let launcherCornerRadius: CGFloat = 14
 }

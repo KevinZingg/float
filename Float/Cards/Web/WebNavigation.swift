@@ -33,6 +33,6 @@ enum WebNavigation {
         guard let width, let height else { return nil }
         let w = min(max(width, Settings.popupWidthRange.lowerBound), Settings.popupWidthRange.upperBound)
         let h = min(max(height, Settings.popupHeightRange.lowerBound), Settings.popupHeightRange.upperBound)
-        return CGSize(width: w, height: h + Settings.chromeHeight)
+        return CGSize(width: w, height: h + Theme.chromeHeight)
     }
 }

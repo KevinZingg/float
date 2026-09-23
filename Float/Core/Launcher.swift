@@ -54,7 +54,7 @@ enum RecentDirectories {
 
 /// ⌥Space quick launcher: a centered pill overlay inside the canvas.
 @MainActor
-final class LauncherView: NSVisualEffectView, NSTextFieldDelegate {
+final class LauncherView: PillView, NSTextFieldDelegate {
     var onLaunch: ((LaunchAction) -> Void)?
     var onDismiss: (() -> Void)?
 
@@ -67,40 +67,40 @@ final class LauncherView: NSVisualEffectView, NSTextFieldDelegate {
 
     init() {
         super.init(frame: CGRect(x: 0, y: 0, width: Settings.launcherWidth, height: 90))
-        material = .hudWindow
-        blendingMode = .withinWindow
-        state = .active
-        wantsLayer = true
-        layer?.cornerRadius = Settings.launcherCornerRadius
-        layer?.cornerCurve = .continuous
-        layer?.masksToBounds = true
 
-        field.font = .systemFont(ofSize: 22, weight: .regular)
         field.isBordered = false
         field.drawsBackground = false
         field.focusRingType = .none
-        field.placeholderString = "Command, ~/path or localhost:3000"
         field.delegate = self
-
-        hintLabel.font = .systemFont(ofSize: 12)
-        hintLabel.textColor = .secondaryLabelColor
 
         suggestionStack.orientation = .vertical
         suggestionStack.alignment = .leading
-        suggestionStack.spacing = 2
+        suggestionStack.spacing = 4
 
         let stack = NSStackView(views: [field, hintLabel, suggestionStack])
         stack.orientation = .vertical
         stack.alignment = .leading
-        stack.spacing = 6
-        stack.edgeInsets = NSEdgeInsets(top: 14, left: 18, bottom: 12, right: 18)
+        stack.spacing = 8
+        stack.edgeInsets = NSEdgeInsets(top: 16, left: 20, bottom: 14, right: 20)
         stack.translatesAutoresizingMaskIntoConstraints = false
         addSubview(stack)
         NSLayoutConstraint.activate([
             stack.leadingAnchor.constraint(equalTo: leadingAnchor),
             stack.trailingAnchor.constraint(equalTo: trailingAnchor),
             stack.topAnchor.constraint(equalTo: topAnchor),
-            field.widthAnchor.constraint(equalTo: stack.widthAnchor, constant: -36),
+            field.widthAnchor.constraint(equalTo: stack.widthAnchor, constant: -40),
+        ])
+        applyTheme()
+    }
+
+    override func applyTheme() {
+        super.applyTheme()
+        // The launcher holds focus, so it wears the focus hairline, like a focused card.
+        layer?.borderColor = Theme.current.focusHairline.cgColor
+        field.font = Theme.mono(18)
+        field.textColor = Theme.current.text
+        field.placeholderAttributedString = NSAttributedString(string: "command, ~/path or localhost:3000", attributes: [
+            .font: Theme.mono(18), .foregroundColor: Theme.faint,
         ])
     }
 
@@ -112,11 +112,13 @@ final class LauncherView: NSVisualEffectView, NSTextFieldDelegate {
     func show(in canvas: NSView, bounds: CGRect) {
         field.stringValue = ""
         mode = nil
+        applyTheme()
         refresh()
         let origin = CGPoint(x: bounds.midX - frame.width / 2, y: bounds.minY + bounds.height * 0.28)
         setFrameOrigin(origin)
         canvas.addSubview(self)
         window?.makeFirstResponder(field)
+        (field.currentEditor() as? NSTextView)?.insertionPointColor = Theme.current.accent
     }
 
     func dismiss() {
@@ -136,19 +138,23 @@ final class LauncherView: NSVisualEffectView, NSTextFieldDelegate {
         let text = field.stringValue
         suggestions = (text.hasPrefix("~") || text.hasPrefix("/")) && mode != .preview ? RecentDirectories.matching(text) : []
         if let s = selected, !suggestions.indices.contains(s) { selected = nil }
+        let t = Theme.current
         let other = if case .preview = action { "terminal" } else { "preview" }
-        hintLabel.stringValue = action.hint + "    ⇥ \(other)"
+        let hint = NSMutableAttributedString(string: action.hint, attributes: [.font: Theme.mono(11), .foregroundColor: t.accent])
+        hint.append(NSAttributedString(string: "     "))
+        hint.append(Theme.label("⇥ \(other)", color: Theme.faint))
+        hintLabel.attributedStringValue = hint
 
         suggestionStack.arrangedSubviews.forEach { $0.removeFromSuperview() }
         for (i, path) in suggestions.enumerated() {
             let label = NSTextField(labelWithString: (path as NSString).abbreviatingWithTildeInPath)
-            label.font = .monospacedSystemFont(ofSize: 12, weight: i == selected ? .semibold : .regular)
-            label.textColor = i == selected ? .controlAccentColor : .labelColor
+            label.font = Theme.mono(12, weight: i == selected ? .medium : .regular)
+            label.textColor = i == selected ? t.accent : t.secondaryText
             suggestionStack.addArrangedSubview(label)
         }
         layoutSubtreeIfNeeded()
-        let height = 14 + field.intrinsicContentSize.height + 6 + hintLabel.intrinsicContentSize.height + 12
-            + (suggestions.isEmpty ? 0 : 6 + CGFloat(suggestions.count) * 18)
+        let height = 16 + field.intrinsicContentSize.height + 8 + hintLabel.intrinsicContentSize.height + 14
+            + (suggestions.isEmpty ? 0 : 8 + CGFloat(suggestions.count) * 20)
         setFrameSize(CGSize(width: Settings.launcherWidth, height: height))
     }
 

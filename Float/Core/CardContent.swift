@@ -20,6 +20,8 @@ protocol CardContent: AnyObject {
     func close()
     func zoom(by step: Int)
     func reload()
+    /// Re-reads Theme.current (and user settings) after they change.
+    func applyTheme()
 }
 
 extension CardContent {
@@ -28,4 +30,5 @@ extension CardContent {
     func confirmClose() -> Bool { true }
     func zoom(by step: Int) {}
     func reload() {}
+    func applyTheme() {}
 }
