@@ -21,13 +21,13 @@ final class CardManager {
     }
 
     private func updateEmptyState() {
-        emptyState.isHidden = !cards.isEmpty
+        emptyState.setVisible(cards.isEmpty, animated: true)
     }
 
     /// Re-reads Theme and user settings after they change.
     func applyTheme() {
         for card in cards { card.applyTheme() }
-        emptyState.needsDisplay = true
+        emptyState.subviews.forEach { $0.needsDisplay = true }
         clampAll()
     }
 

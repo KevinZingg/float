@@ -1,7 +1,7 @@
 import AppKit
 import CoreText
 
-/// Design tokens: colour, type, shape and shadow for everything Float draws. Physics and layout live in Settings.
+/// Design tokens: colour, type, shape and shadow for everything Float draws. Physics and layout live in Config.
 /// Values follow the mogen identity (website/brand/IDENTITY.md, src/styles/tokens.css, dark ground).
 struct Theme {
     enum Name: String, CaseIterable {

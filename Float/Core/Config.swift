@@ -71,9 +71,21 @@ enum Config {
     static let toastHeight: CGFloat = 28
     static let toastDuration: TimeInterval = 4
     static let promptMaxWidth: CGFloat = 460
-    static let emptyStateMaxGlyph: CGFloat = 9
-    static let emptyStateAlpha: CGFloat = 0.07
-    static let emptyStateLabelAlpha: CGFloat = 0.4
+    // Empty state: Helvetia over a frosted halo
+    static let emptyStateMaxGlyph: CGFloat = 8
+    static let emptyStateAlpha: CGFloat = 0.6
+    static let emptyStateLabelAlpha: CGFloat = 0.85
+    static let haloWidthFraction: CGFloat = 0.62
+    static let haloWidthRange: ClosedRange<CGFloat> = 900...1100
+    /// Fractions of the halo radius: fully opaque out to the core, fully faded by the end.
+    static let haloCoreEnd: CGFloat = 0.3
+    static let haloFadeEnd: CGFloat = 0.72
+    /// Width of the Gaussian tail beyond the core, as a fraction of the radius.
+    static let haloSigma: CGFloat = 0.26
+    /// The figure (and its label) fits inside this fraction of the halo width, where the blur is still near full.
+    static let haloFigureFraction: CGFloat = 0.46
+    /// Night tint over the blur at the centre.
+    static let haloTint: CGFloat = 0.5
     static let cardEntranceScale: CGFloat = 0.92
     static let cardExitDuration: TimeInterval = 0.2
 
