@@ -93,6 +93,15 @@ final class CardManager {
         card.mover.animate(to: target, velocity: velocity, spring: spring)
     }
 
+    /// Locks (or frees) a card's content aspect and resizes it to match, keeping its width.
+    func setAspect(_ aspect: CGFloat?, for card: CardView) {
+        card.aspect = aspect
+        guard let aspect else { return }
+        var f = card.frame
+        f.size.height = f.width / aspect + Settings.chromeHeight
+        setFrame(Snapping.clamp(f, in: canvas.layoutBounds), for: card)
+    }
+
     /// Pulls every card back on screen, e.g. after Stage Manager shifts the window.
     func clampAll() {
         for card in cards where !card.mover.isRunning {

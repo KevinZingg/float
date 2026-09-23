@@ -128,7 +128,8 @@ final class CardView: NSView {
         let local = convert(point, from: superview)
         let commandDrag = NSApp.currentEvent?.type == .leftMouseDown
             && NSEvent.modifierFlags.contains(.command)
-        if !edges(at: local).isEmpty || commandDrag || hit === chrome || hit === titleLabel || hit === container {
+        let onChrome = hit === chrome || hit === titleLabel || hit === container || hit === content.accessory
+        if !edges(at: local).isEmpty || commandDrag || onChrome {
             return self
         }
         return hit

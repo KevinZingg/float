@@ -35,7 +35,14 @@ final class FloatApp: NSObject, NSApplicationDelegate {
 
         window.makeKeyAndOrderFront(nil)
         NSApp.activate()
-        newTerminal()
+        if CommandLine.arguments.contains("--demo") { runDemo() } else { newTerminal() }
+    }
+
+    /// Dev flag: a typical layout to eyeball rendering and spacing.
+    private func runDemo() {
+        for _ in 0..<3 { newTerminal() }
+        newPreview(url: "https://example.com")
+        newPreview()
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
@@ -64,6 +71,18 @@ final class FloatApp: NSObject, NSApplicationDelegate {
         manager.add(TerminalCard(directory: directory), size: Settings.terminalSize)
     }
 
+    @objc func newPreview() { newPreview(url: Settings.defaultURL) }
+
+    func newPreview(url: String) {
+        bringToFront()
+        let web = WebCard(url: url)
+        let card = manager.add(web, size: Settings.previewSize)
+        web.onSuggestAspect = { [weak self, weak card] aspect in
+            guard let self, let card else { return }
+            self.manager.setAspect(aspect, for: card)
+        }
+    }
+
     @objc func focusNext() { bringToFront(); manager.cycleFocus(by: 1) }
     @objc func focusPrevious() { bringToFront(); manager.cycleFocus(by: -1) }
     @objc func closeCard() { manager.closeFocused() }
@@ -74,6 +93,7 @@ final class FloatApp: NSObject, NSApplicationDelegate {
     private func registerHotkeys() {
         let bindings: [(Hotkey, () -> Void)] = [
             (Settings.hotkeyNewTerminal, { [weak self] in self?.newTerminal() }),
+            (Settings.hotkeyNewPreview, { [weak self] in self?.newPreview() }),
             (Settings.hotkeyNext, { [weak self] in self?.focusNext() }),
             (Settings.hotkeyPrevious, { [weak self] in self?.focusPrevious() }),
         ]
@@ -95,6 +115,7 @@ final class FloatApp: NSObject, NSApplicationDelegate {
 
         let file = NSMenu()
         file.addItem(item("New Terminal", #selector(newTerminal), "t", [.command, .option]))
+        file.addItem(item("New Preview", #selector(newPreview as () -> Void), "p", [.command, .option]))
         file.addItem(.separator())
         file.addItem(item("Close Card", #selector(closeCard), "w"))
         main.addItem(submenu: file, title: "File")
