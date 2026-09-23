@@ -2,6 +2,8 @@
 
 Picture-in-picture for your dev setup. Terminals and live web previews float as small cards on one transparent macOS window, so they fly around like a YouTube PiP but still behave like a single app in Stage Manager.
 
+![Float with three terminals and two web previews floating over the desktop](docs/demo.jpg)
+
 ## Features
 - **Real terminals** (SwiftTerm): your login shell, truecolor, mouse, runs `claude`, vim, htop
 - **Web previews that scale, not squash**: pages render at a virtual 1440px (or 1280 / 834 / 390) viewport and zoom down to fit the card
