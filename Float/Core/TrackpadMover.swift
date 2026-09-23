@@ -1,5 +1,12 @@
 import AppKit
 
+/// A view that wants first say over scroll events AppKit would deliver to it (for views whose scrollWheel isn't open).
+@MainActor
+protocol ScrollInterceptor: NSView {
+    /// Returns true when the event was consumed.
+    func interceptScroll(_ event: NSEvent) -> Bool
+}
+
 /// Moves cards with a two-finger trackpad swipe, over the top strip or anywhere with ⌘ held.
 /// An app-level monitor, because SwiftTerm and WKWebView consume scroll events before the card sees them.
 @MainActor
@@ -23,14 +30,19 @@ final class TrackpadMover {
                 if event.momentumPhase.contains(.ended) || event.momentumPhase.contains(.cancelled) { momentumOwner = nil }
                 return nil
             }
-            return event
+            return intercept(event)
         }
 
         if event.phase.contains(.began) {
             momentumOwner = nil
-            guard event.hasPreciseScrollingDeltas, let card = card(at: event, in: canvas) else { return event }
+            // A gesture whose .ended went to another window would otherwise keep capturing every later scroll.
+            if let stale = active {
+                active = nil
+                stale.endMove(at: event.timestamp, cancelled: true)
+            }
+            guard event.hasPreciseScrollingDeltas, let card = card(at: event, in: canvas) else { return intercept(event) }
             let local = card.convert(event.locationInWindow, from: nil)
-            guard event.modifierFlags.contains(.command) || card.isInStrip(local) else { return event }
+            guard event.modifierFlags.contains(.command) || card.isInStrip(local) else { return intercept(event) }
             NSLog("Float: trackpad move started (%@)", event.modifierFlags.contains(.command) ? "⌘" : "strip")
             active = card
             offset = .zero
@@ -38,7 +50,7 @@ final class TrackpadMover {
             card.beginMove(at: event.timestamp)
         }
 
-        guard let card = active else { return event }
+        guard let card = active else { return intercept(event) }
         if event.phase.contains(.changed) || event.phase.contains(.began) {
             // Follow the fingers: natural scrolling already reports deltas in finger direction.
             let sign: CGFloat = event.isDirectionInvertedFromDevice ? 1 : -1
@@ -52,6 +64,17 @@ final class TrackpadMover {
             card.endMove(at: event.timestamp, cancelled: event.phase.contains(.cancelled))
         }
         return nil
+    }
+
+    /// Offers a pass-through event to the view under the pointer; nil if it consumed it.
+    private func intercept(_ event: NSEvent) -> NSEvent? {
+        guard let content = event.window?.contentView,
+              let target = content.hitTest(content.superview?.convert(event.locationInWindow, from: nil) ?? event.locationInWindow)
+        else { return event }
+        var view: NSView? = target
+        while let v = view, !(v is ScrollInterceptor) { view = v.superview }
+        guard let interceptor = view as? ScrollInterceptor else { return event }
+        return interceptor.interceptScroll(event) ? nil : event
     }
 
     /// Topmost card under the pointer.

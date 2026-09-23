@@ -59,6 +59,10 @@ enum Config {
 
     static let terminalInset: CGFloat = 10
     static let terminalFontRange: ClosedRange<CGFloat> = 8...32
+    /// Precise trackpad travel per line when the wheel is sent to a full-screen app (claude, vim, less).
+    static let terminalScrollPointsPerLine: CGFloat = 16
+    /// Cap per event so a hard fling doesn't flood the app with keystrokes.
+    static let terminalScrollMaxLinesPerEvent = 8
 
     static let defaultURL = "localhost:3000"
     static let localRetryInterval: TimeInterval = 2
