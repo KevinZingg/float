@@ -6,7 +6,7 @@ final class CardView: NSView {
     let content: CardContent
     /// Locked content aspect ratio (width / height of the area below the chrome).
     var aspect: CGFloat?
-    var isFocused = false { didSet { updateBorder() } }
+    var isFocused = false { didSet { updateBorder(); updateGrabber() } }
 
     var onFocus: ((CardView) -> Void)?
     /// Drag released, with the release velocity in canvas points per second.
@@ -17,10 +17,14 @@ final class CardView: NSView {
     var onCloseRequested: ((CardView) -> Void)?
 
     private let container = FlippedView()
-    private let chrome = NSView()
+    private let chrome = FlippedView()
     private let titleLabel = NSTextField(labelWithString: "")
     private let closeButton = NSButton()
     private let presetButton = NSButton()
+    private let grabber = GrabberView()
+    private var isHovered = false
+    private var isMoving = false
+    private var moveOffset = CGVector.zero
 
     private enum Gesture { case move, resize(Edges) }
     private var gesture: Gesture?
@@ -81,6 +85,7 @@ final class CardView: NSView {
         chrome.addSubview(presetButton)
 
         if let accessory = content.accessory { chrome.addSubview(accessory) }
+        chrome.addSubview(grabber)
         container.addSubview(content.view)
 
         content.onTitleChange = { [weak self] title in self?.titleLabel.stringValue = title }
@@ -96,11 +101,23 @@ final class CardView: NSView {
 
     /// Chrome buttons stay quiet until the pointer is over the card.
     private func setHovered(_ hovered: Bool, animated: Bool = true) {
+        isHovered = hovered
         let alpha: CGFloat = hovered ? 1 : Settings.idleChromeAlpha
         NSAnimationContext.runAnimationGroup { ctx in
             ctx.duration = animated ? 0.15 : 0
             for button in [closeButton, presetButton] { button.animator().alphaValue = alpha }
         }
+        updateGrabber()
+    }
+
+    /// Always shown on the focused card, fades in on hover for others, brightens while moving.
+    private func updateGrabber() {
+        grabber.emphasis = isMoving || (isHovered && isFocused) ? .active : (isFocused || isHovered ? .idle : .hidden)
+    }
+
+    /// The top strip, where a plain two-finger swipe or a drag moves the card.
+    func isInStrip(_ local: CGPoint) -> Bool {
+        local.y >= 0 && local.y < Settings.chromeHeight && local.x >= 0 && local.x <= bounds.width
     }
 
     required init?(coder: NSCoder) { fatalError() }
@@ -119,10 +136,14 @@ final class CardView: NSView {
         closeButton.frame = CGRect(x: bounds.width - button - 6, y: (h - button) / 2, width: button, height: button)
         presetButton.frame = closeButton.frame.offsetBy(dx: -button, dy: 0)
         let trailing = presetButton.frame.minX - 4
+        let pill = Settings.grabberSize
+        grabber.frame = CGRect(x: (bounds.width - pill.width) / 2, y: Settings.grabberTopInset, width: pill.width, height: pill.height)
 
         if let accessory = content.accessory {
             titleLabel.isHidden = true
-            accessory.frame = CGRect(x: 8, y: 0, width: max(0, trailing - 8), height: h)
+            // Sits below the grabber pill.
+            let top = grabber.frame.maxY
+            accessory.frame = CGRect(x: 8, y: top, width: max(0, trailing - 8), height: h - top)
         } else {
             titleLabel.sizeToFit()
             let labelH = titleLabel.frame.height
@@ -199,29 +220,21 @@ final class CardView: NSView {
     // MARK: - Move / resize
 
     override func mouseDown(with event: NSEvent) {
-        mover.stop()
         let local = convert(event.locationInWindow, from: nil)
         let e = edges(at: local)
         gesture = e.isEmpty ? .move : .resize(e)
-        startFrame = frame
         startMouse = superview?.convert(event.locationInWindow, from: nil) ?? .zero
-        tracker.reset()
-        tracker.add(startMouse, at: event.timestamp)
-        if case .move = gesture { setLifted(true) }
         onFocus?(self)
+        if e.isEmpty { beginMove(at: event.timestamp) } else { mover.stop(); startFrame = frame }
     }
 
     override func mouseDragged(with event: NSEvent) {
         guard let gesture, let superview else { return }
         let p = superview.convert(event.locationInWindow, from: nil)
-        let dx = p.x - startMouse.x, dy = p.y - startMouse.y
+        let d = CGVector(dx: p.x - startMouse.x, dy: p.y - startMouse.y)
         switch gesture {
-        case .move:
-            tracker.add(p, at: event.timestamp)
-            let bounds = (superview as? CanvasView)?.layoutBounds ?? superview.bounds
-            frame = Snapping.rubberBand(startFrame.offsetBy(dx: dx, dy: dy), in: bounds)
-        case .resize(let e):
-            frame = resized(edges: e, dx: dx, dy: dy)
+        case .move: updateMove(offset: d, at: event.timestamp)
+        case .resize(let e): frame = resized(edges: e, dx: d.dx, dy: d.dy)
         }
     }
 
@@ -229,12 +242,41 @@ final class CardView: NSView {
         guard let ended = gesture else { return }
         gesture = nil
         switch ended {
-        case .move:
-            setLifted(false)
-            onMoveEnded?(self, tracker.velocity(at: event.timestamp))
-        case .resize:
-            onResizeEnded?(self)
+        case .move: endMove(at: event.timestamp)
+        case .resize: onResizeEnded?(self)
         }
+    }
+
+    // MARK: - Move (shared by mouse drag and TrackpadMover)
+
+    func beginMove(at time: TimeInterval) {
+        mover.stop()
+        startFrame = frame
+        moveOffset = .zero
+        tracker.reset()
+        tracker.add(.zero, at: time)
+        isMoving = true
+        updateGrabber()
+        NSCursor.closedHand.push()
+        setLifted(true)
+    }
+
+    /// `offset` is the total pointer/finger travel since `beginMove`, in canvas points.
+    func updateMove(offset: CGVector, at time: TimeInterval) {
+        guard isMoving, let superview else { return }
+        moveOffset = offset
+        tracker.add(CGPoint(x: offset.dx, y: offset.dy), at: time)
+        let bounds = (superview as? CanvasView)?.layoutBounds ?? superview.bounds
+        frame = Snapping.rubberBand(startFrame.offsetBy(dx: offset.dx, dy: offset.dy), in: bounds)
+    }
+
+    func endMove(at time: TimeInterval, cancelled: Bool = false) {
+        guard isMoving else { return }
+        isMoving = false
+        NSCursor.pop()
+        updateGrabber()
+        setLifted(false)
+        onMoveEnded?(self, cancelled ? .zero : tracker.velocity(at: time))
     }
 
     // MARK: - Lift
@@ -289,6 +331,10 @@ final class CardView: NSView {
     override func resetCursorRects() {
         let z = Settings.resizeZone
         let b = bounds
+        // Open hand over the strip's empty area (left of the buttons; the web card's controls cover it).
+        if content.accessory == nil {
+            addCursorRect(CGRect(x: z, y: z, width: presetButton.frame.minX - z, height: Settings.chromeHeight - z), cursor: .openHand)
+        }
         addCursorRect(CGRect(x: 0, y: z, width: z, height: b.height - 2 * z), cursor: .resizeLeftRight)
         addCursorRect(CGRect(x: b.width - z, y: z, width: z, height: b.height - 2 * z), cursor: .resizeLeftRight)
         addCursorRect(CGRect(x: z, y: 0, width: b.width - 2 * z, height: z), cursor: .resizeUpDown)

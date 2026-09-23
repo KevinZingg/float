@@ -10,6 +10,10 @@ enum Settings {
 
     static let chromeHeight: CGFloat = 28
     static let idleChromeAlpha: CGFloat = 0.3
+    static let grabberSize = CGSize(width: 36, height: 5)
+    static let grabberTopInset: CGFloat = 3
+    static let grabberIdleAlpha: CGFloat = 0.35
+    static let grabberActiveAlpha: CGFloat = 0.7
     static let resizeZone: CGFloat = 6
     static let minCardSize = NSSize(width: 220, height: 140)
 

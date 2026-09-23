@@ -8,8 +8,11 @@ final class CardManager {
     private(set) var cards: [CardView] = []
     private(set) var focused: CardView?
 
+    private var trackpad: TrackpadMover?
+
     init(canvas: CanvasView) {
         self.canvas = canvas
+        trackpad = TrackpadMover(canvas: canvas) { [weak self] in self?.focus($0) }
     }
 
     @discardableResult
