@@ -53,6 +53,11 @@ final class FloatApp: NSObject, NSApplicationDelegate {
         if let i = args.firstIndex(of: "--theme"), i + 1 < args.count, let name = Theme.Name(rawValue: args[i + 1]) {
             UserDefaults.standard.set(name.rawValue, forKey: Config.Keys.theme)
         }
+        // Hidden: picks one of the empty-state treatments (see EmptyStateView.Variant).
+        if let i = args.firstIndex(of: "--empty-variant"), i + 1 < args.count, let n = Int(args[i + 1]),
+           EmptyStateView.Variant(rawValue: n) != nil {
+            UserDefaults.standard.set(n, forKey: Config.Keys.emptyVariant)
+        }
     }
 
     // MARK: - Live settings

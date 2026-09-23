@@ -25,6 +25,8 @@ struct Theme {
     static let hair = NSColor(hex: 0x2e2c2a)
     static let codeBackground = NSColor(hex: 0x1f1e1c)
     static let sageInk = NSColor(hex: 0xc5cc9f)
+    /// Sage ink for light grounds (the identity's light-theme --sage-ink).
+    static let sageInkOnPaper = NSColor(hex: 0x5b6444)
 
     /// Solid card and terminal ground.
     var cardBackground: NSColor { Self.night }
