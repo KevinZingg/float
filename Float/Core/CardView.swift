@@ -266,7 +266,7 @@ final class CardView: NSView {
         guard isMoving, let superview else { return }
         moveOffset = offset
         tracker.add(CGPoint(x: offset.dx, y: offset.dy), at: time)
-        let bounds = (superview as? CanvasView)?.layoutBounds ?? superview.bounds
+        let bounds = superview.bounds
         frame = Snapping.rubberBand(startFrame.offsetBy(dx: offset.dx, dy: offset.dy), in: bounds)
     }
 

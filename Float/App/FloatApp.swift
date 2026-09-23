@@ -30,9 +30,6 @@ final class FloatApp: NSObject, NSApplicationDelegate {
 
         NSApp.mainMenu = buildMenu()
         registerHotkeys()
-        NotificationCenter.default.addObserver(
-            self, selector: #selector(screenChanged),
-            name: NSApplication.didChangeScreenParametersNotification, object: nil)
         for name in [NSWindow.didMoveNotification, NSWindow.didResizeNotification] {
             NotificationCenter.default.addObserver(
                 self, selector: #selector(windowGeometryChanged), name: name, object: window)
@@ -61,9 +58,6 @@ final class FloatApp: NSObject, NSApplicationDelegate {
 
     @objc private func windowGeometryChanged() { manager.clampAll() }
 
-    @objc private func screenChanged() {
-        if let screen = NSScreen.main { window.setFrame(screen.visibleFrame, display: true) }
-    }
 
     // MARK: - Actions
 
@@ -101,7 +95,7 @@ final class FloatApp: NSObject, NSApplicationDelegate {
     @objc func showLauncher() {
         bringToFront()
         guard let canvas = window.contentView else { return }
-        launcher.show(in: canvas, bounds: manager.canvas.layoutBounds)
+        launcher.show(in: canvas, bounds: manager.canvas.bounds)
     }
 
     private func launch(_ action: LaunchAction) {

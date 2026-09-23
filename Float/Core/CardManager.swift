@@ -18,7 +18,7 @@ final class CardManager {
     @discardableResult
     /// With `spawnFrom`, the card appears centered there and springs into a free spot.
     func add(_ content: CardContent, size: NSSize, aspect: CGFloat? = nil, spawnFrom: CGRect? = nil) -> CardView {
-        let bounds = canvas.layoutBounds
+        let bounds = canvas.bounds
         let step = CGFloat(cards.count % 8) * Settings.cascadeOffset
         var start = Snapping.clamp(CGRect(
             x: bounds.minX + Settings.padding + step, y: bounds.minY + Settings.padding + step,
@@ -98,7 +98,7 @@ final class CardManager {
 
     /// PiP-style release: a fling docks at the anchor nearest the projected point; a slow drop stays, clamped.
     func settle(_ card: CardView, velocity: CGVector) {
-        let target = Fling.target(for: card.frame, velocity: velocity, in: canvas.layoutBounds)
+        let target = Fling.target(for: card.frame, velocity: velocity, in: canvas.bounds)
         guard target != card.frame else { return }
         let spring: Spring = Fling.isFling(velocity) ? .standard : .rubberBand
         card.mover.animate(to: target, velocity: velocity, spring: spring)
@@ -109,7 +109,7 @@ final class CardManager {
         let terminals = cards.filter { $0.content.kind == .terminal }
         let previews = cards.filter { $0.content.kind == .web }
         let layout = Snapping.arrange(
-            terminals: terminals.count, previewAspects: previews.map(\.aspect), in: canvas.layoutBounds)
+            terminals: terminals.count, previewAspects: previews.map(\.aspect), in: canvas.bounds)
         for (card, frame) in zip(terminals + previews, layout.terminals + layout.previews) {
             setFrame(frame, for: card)
         }
@@ -121,7 +121,7 @@ final class CardManager {
         let chrome = Settings.chromeHeight
         let ratio = card.aspect ?? f.width / max(f.height - chrome, 1)
         f.size = CGSize(width: preset.width, height: preset.width / ratio + chrome)
-        setFrame(Snapping.clamp(f, in: canvas.layoutBounds), for: card)
+        setFrame(Snapping.clamp(f, in: canvas.bounds), for: card)
     }
 
     /// Locks (or frees) a card's content aspect and resizes it to match, keeping its width.
@@ -130,13 +130,13 @@ final class CardManager {
         guard let aspect else { return }
         var f = card.frame
         f.size.height = f.width / aspect + Settings.chromeHeight
-        setFrame(Snapping.clamp(f, in: canvas.layoutBounds), for: card)
+        setFrame(Snapping.clamp(f, in: canvas.bounds), for: card)
     }
 
     /// Pulls every card back on screen, e.g. after Stage Manager shifts the window.
     func clampAll() {
         for card in cards where !card.mover.isRunning {
-            card.frame = Snapping.clamp(card.frame, in: canvas.layoutBounds)
+            card.frame = Snapping.clamp(card.frame, in: canvas.bounds)
         }
     }
 
